@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/scan/view/scan_camera_view.dart';
+import 'package:pdfscanner001/features/scan/view/scan_view.dart';
+import 'package:pdfscanner001/features/scan/viewmodel/scan_viewmodel.dart';
+import 'package:provider/provider.dart';
+
+import '../features/home/viewmodel/home_viewmodel.dart';
 
 class ScanMenuOverlay extends StatelessWidget {
   final VoidCallback onClose;
 
-  const ScanMenuOverlay({required this.onClose});
+  const ScanMenuOverlay({super.key, required this.onClose});
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +62,8 @@ class _BubbleMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ScanViewModel>();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -72,12 +78,9 @@ class _BubbleMenu extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
-          _menuButton('Camera', () {
-            Navigator.of(context).pop();
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const ScanCameraView()));
-            onSelect('Camera');
+          _menuButton('Camera', () async {
+            Navigator.pop(context); // đóng popup
+            await context.read<ScanViewModel>().scan();
           }),
 
           const SizedBox(height: 12),
