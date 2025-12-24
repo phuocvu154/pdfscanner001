@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 
-import '../model/scaned_document.dart';
+import 'scaned_document.dart';
 
 class ScanViewModel extends ChangeNotifier {
   bool isScanning = false;
@@ -17,8 +17,8 @@ class ScanViewModel extends ChangeNotifier {
       // 1. Tạo options cho scanner
       final options = DocumentScannerOptions(
         documentFormat: DocumentFormat.jpeg, // hoặc DocumentFormat.pdf
-        mode: ScannerMode.filter, // UI có filter, crop, etc.
-        pageLimit: 5, // tối đa 5 trang
+        mode: ScannerMode.full, // UI có filter, crop, etc.
+        pageLimit: 10, // tối đa 10 trang
         isGalleryImport: true, // cho phép chọn từ gallery
       );
 
@@ -44,5 +44,11 @@ class ScanViewModel extends ChangeNotifier {
       isScanning = false;
       notifyListeners();
     }
+  }
+
+  void exit(BuildContext context) {
+    isScanning = false;
+    notifyListeners();
+    Navigator.of(context).pop();
   }
 }

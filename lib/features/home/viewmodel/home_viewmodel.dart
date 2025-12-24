@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/scan_menu_overlay.dart';
+import '../../scan/scanner_view.dart';
 
 enum HomeTab { myFiles, convertFiles }
 
@@ -37,14 +38,19 @@ class HomeViewModel extends ChangeNotifier {
     _currentTab = tab;
     notifyListeners();
   }
-  
-  late final VoidCallback onClose;
+
   void onScanPressed(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: false,
-      builder: (_) =>  ScanMenuOverlay(onClose: onClose),
+      builder: (_) => ScanMenuOverlay(onClose: () {}),
     );
+  }
+
+  void openScanner(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ScannerScreen()));
   }
 }

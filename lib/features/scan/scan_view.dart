@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../pdf/pdf_viewmodel.dart';
-import '../viewmodel/scan_viewmodel.dart';
+import '../pdf/pdf_viewmodel.dart';
+import 'scan_viewmodel.dart';
 
 class ScanView extends StatelessWidget {
   const ScanView({super.key});

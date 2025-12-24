@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:pdfscanner001/features/home/viewmodel/home_viewmodel.dart';
 
 import 'package:provider/provider.dart';
-import 'features/documents/document__viewmodel.dart';
+import 'features/convert_files/view/convert_view.dart';
+import 'features/documents/document_viewmodel.dart';
 import 'features/documents/document_item.dart';
 import 'features/documents/document_repository.dart';
 import 'features/home/view/home_view.dart';
 import 'features/pdf/pdf_preview_view.dart';
 import 'features/pdf/pdf_repository.dart';
 import 'features/pdf/pdf_viewmodel.dart';
-import 'features/scan/view/scan_view.dart';
-import 'features/scan/viewmodel/scan_viewmodel.dart';
+import 'features/scan/scan_view.dart';
+import 'features/scan/scan_viewmodel.dart';
+import 'theme/app_colors.dart';
+import 'widgets/bottom_nav_item.dart';
+import 'widgets/myfilesbody.dart';
+import 'widgets/scan_menu_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,11 +38,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => HomeViewModel()),
         ChangeNotifierProvider(create: (_) => ScanViewModel()),
         ChangeNotifierProvider(create: (_) => DocumentsViewModel(docRepo)),
         ChangeNotifierProvider(
           create: (_) => PdfViewModel(PdfRepository(), docRepo),
         ),
+
         // ChangeNotifierProvider(create: (_) => ToolsViewModel()),
       ],
       child: MaterialApp(

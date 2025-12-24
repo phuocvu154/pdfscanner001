@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/scan/view/scan_view.dart';
-import 'package:pdfscanner001/features/scan/viewmodel/scan_viewmodel.dart';
+import 'package:pdfscanner001/features/pdf/pdf_viewmodel.dart';
+import 'package:pdfscanner001/features/scan/scan_view.dart';
+import 'package:pdfscanner001/features/scan/scan_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 import '../features/home/viewmodel/home_viewmodel.dart';
@@ -62,7 +63,7 @@ class _BubbleMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<ScanViewModel>();
+    final vm = context.watch<ScanViewModel>();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -78,9 +79,9 @@ class _BubbleMenu extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
-          _menuButton('Camera', () async {
-            Navigator.pop(context); // đóng popup
-            await context.read<ScanViewModel>().scan();
+          _menuButton('Camera', () {
+            onSelect('camera');
+            context.read<HomeViewModel>().openScanner(context);
           }),
 
           const SizedBox(height: 12),

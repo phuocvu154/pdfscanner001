@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../pdf/pdf_preview_view.dart';
-import 'document__viewmodel.dart';
+import 'document_viewmodel.dart';
 import 'document_item.dart';
 
 class DocumentsView extends StatelessWidget {

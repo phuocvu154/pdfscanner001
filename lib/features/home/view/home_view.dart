@@ -1,27 +1,31 @@
+
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/widgets/myfilesbody.dart';
+import 'package:pdfscanner001/features/documents/document_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../widgets/bottom_nav_item.dart';
+import '../../../widgets/myfilesbody.dart';
 import '../../../widgets/scan_menu_overlay.dart';
+import '../../convert_files/view/convert_view.dart';
 import '../viewmodel/home_viewmodel.dart';
-import '../../convert/view/convert_view.dart';
 
-class HomeView extends StatelessWidget {
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
-      child: const _HomeContent(),
-    );
-  }
+  State<HomeView> createState() => HomeViewState();
 }
 
-class _HomeContent extends StatelessWidget {
-  const _HomeContent();
+class HomeViewState extends State<HomeView> {
+  @override
+  void initState() {
+    super.initState();
+    // load tài liệu từ Hive sau khi widget build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DocumentsViewModel>().loadDocuments();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
