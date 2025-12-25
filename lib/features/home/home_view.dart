@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:pdfscanner001/features/documents/document_viewmodel.dart';
 import 'package:provider/provider.dart';
 
-import '../../../theme/app_colors.dart';
-import '../../../widgets/bottom_nav_item.dart';
-import '../../../widgets/myfilesbody.dart';
-import '../../../widgets/scan_menu_overlay.dart';
-import '../../convert_files/view/convert_view.dart';
-import '../viewmodel/home_viewmodel.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/bottom_nav_item.dart';
+import '../../widgets/myfilesbody.dart';
+import '../../widgets/scan_menu_overlay.dart';
+import '../convert_files/view/convert_view.dart';
+import 'home_viewmodel.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});

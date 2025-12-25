@@ -20,7 +20,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     // mở scanner NGAY LẬP TỨC khi vào màn hình
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ScanViewModel>().scan();
+      context.read<ScanViewModel>().scan(context);
     });
   }
 
@@ -40,7 +40,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   onPressed: vm.isScanning
                       ? null
                       : () async {
-                          await vm.scan();
+                          await vm.scan(context);
                         },
                   icon: const Icon(Icons.document_scanner),
                   label: Text(vm.isScanning ? 'Đang quét...' : 'Quét tài liệu'),

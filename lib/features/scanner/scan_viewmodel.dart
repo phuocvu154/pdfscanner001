@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 
+import '../scan_result_preview/scan_result_screen.dart';
 import 'scaned_document.dart';
 
 class ScanViewModel extends ChangeNotifier {
@@ -8,7 +9,7 @@ class ScanViewModel extends ChangeNotifier {
   ScannedDocument? lastDocument;
   String? error;
 
-  Future<void> scan() async {
+  Future<void> scan(BuildContext context) async {
     isScanning = true;
     error = null;
     notifyListeners();
@@ -38,6 +39,14 @@ class ScanViewModel extends ChangeNotifier {
       );
 
       await scanner.close();
+
+      // Scan xong → sang màn hình Preview
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ScanResultScreen(imageUris: result.images),
+        ),
+      );
+      
     } catch (e) {
       error = e.toString();
     } finally {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../widgets/scan_menu_overlay.dart';
-import '../../scan/scanner_view.dart';
+import '../../widgets/scan_menu_overlay.dart';
+import '../scanner/scanner_view.dart';
 
 enum HomeTab { myFiles, convertFiles }
 

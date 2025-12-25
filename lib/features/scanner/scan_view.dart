@@ -23,7 +23,7 @@ class ScanView extends StatelessWidget {
               onPressed: vm.isScanning
                   ? null
                   : () async {
-                      await vm.scan();
+                      await vm.scan(context);
                     },
               icon: const Icon(Icons.document_scanner),
               label: Text(vm.isScanning ? 'Đang quét...' : 'Quét tài liệu'),

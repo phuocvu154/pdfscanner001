@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/home/viewmodel/home_viewmodel.dart';
+import 'package:pdfscanner001/features/home/home_viewmodel.dart';
 
 class MyFilesBody extends StatelessWidget {
   final HomeViewModel vm;
