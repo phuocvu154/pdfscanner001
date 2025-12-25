@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pdfscanner001/features/home/home_viewmodel.dart';
+import 'package:pdfscanner001/features/scan_result_preview/scan_result_viewmodel.dart';
 import 'package:pdfscanner001/features/scanner/document_scanner_service.dart';
 
 import 'package:provider/provider.dart';
@@ -39,8 +40,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider(create: (_) => DocumentScannerService()),
-        ChangeNotifierProvider(create: (_) => HomeViewModel()),
+        Provider<DocumentRepository>.value(
+      value: docRepo,
+    ),
+    Provider(create: (_) => DocumentScannerService()),
+        ChangeNotifierProvider(create: (_) => HomeViewModel(docRepo)),
+        // ChangeNotifierProvider(create: (_) => ScanResultViewModel([],docRepo)),
+      
         ChangeNotifierProvider(create: (_) => ScanViewModel()),
         ChangeNotifierProvider(create: (_) => DocumentsViewModel(docRepo)),
         ChangeNotifierProvider(

@@ -114,33 +114,4 @@ class HomeViewState extends State<HomeView> {
   }
 }
 
-class _HomeEmptyView extends StatelessWidget {
-  const _HomeEmptyView();
 
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.description_outlined, size: 80, color: Colors.grey),
-            SizedBox(height: 24),
-            Text(
-              'Instant document conversion',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Quickly scan documents and access them anytime, anywhere',
-              style: TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

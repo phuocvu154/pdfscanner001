@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:pdfscanner001/features/documents/document_repository.dart';
 import 'package:provider/provider.dart';
 
+import '../pdf/pdf_viewmodel.dart';
 import '../scanner/document_scanner_service.dart';
 import 'scan_result_viewmodel.dart';
 
@@ -12,10 +14,10 @@ class ScanResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ScanResultViewModel(
+     return ChangeNotifierProvider(
+      create: (_) => ScanResultViewModel(
         imageUris,
-        context.read<DocumentScannerService>(),
+        context.read<DocumentRepository>(),
       ),
       child: const _ScanResultView(),
     );
@@ -38,7 +40,8 @@ class _ScanResultView extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => vm.done(context),
+            onPressed: () =>
+                context.read<ScanResultViewModel>().onDone(context),
             child: const Text('Done'),
           ),
         ],
