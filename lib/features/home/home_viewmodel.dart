@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/scan_menu_overlay.dart';
+import '../documents/document_item.dart';
+import '../documents/document_repository.dart';
 import '../scanner/scanner_view.dart';
 
 enum HomeTab { myFiles, convertFiles }
@@ -13,23 +15,36 @@ class RecentFile {
 }
 
 class HomeViewModel extends ChangeNotifier {
+  final DocumentRepository _repository;
+
+  List<DocumentItem> recentFiles = [];
+
   HomeTab _currentTab = HomeTab.myFiles;
 
   HomeTab get currentTab => _currentTab;
 
-  // giả lập data
-  final List<RecentFile> recentFiles = [
-    RecentFile(
-      name: 'Scan Docly December 11(1).png',
-      date: 'December 15, 2025',
-      info: '1 page, 68KB',
-    ),
-    RecentFile(
-      name: 'Scan Docly December 11(1).pdf',
-      date: 'December 15, 2025',
-      info: '1 page, 68KB',
-    ),
-  ];
+  HomeViewModel(this._repository) {
+    loadFiles();
+  }
+
+  void loadFiles() {
+    recentFiles = _repository.getDocuments();
+    notifyListeners();
+  }
+
+  // // giả lập data
+  // final List<RecentFile> recentFiles = [
+  //   RecentFile(
+  //     name: 'Scan Docly December 11(1).png',
+  //     date: 'December 15, 2025',
+  //     info: '1 page, 68KB',
+  //   ),
+  //   RecentFile(
+  //     name: 'Scan Docly December 11(1).pdf',
+  //     date: 'December 15, 2025',
+  //     info: '1 page, 68KB',
+  //   ),
+  // ];
 
   bool get hasRecent => recentFiles.isNotEmpty;
 

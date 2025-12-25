@@ -36,4 +36,8 @@ class DocumentRepository {
   void deleteDocument(String id) {
     box.delete(id);
   }
+
+  Future<void> saveFile(DocumentItem file) async {
+    await box.add(file);
+  }
 }

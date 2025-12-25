@@ -24,15 +24,26 @@ class MyFilesBody extends StatelessWidget {
         ),
 
         // 🔥 CHỈ HIỆN KHI KHÔNG EMPTY
-        if (vm.hasRecent) ...[
+       if (vm.hasRecent) ...[
           const SizedBox(height: 24),
           const Text(
             'Recently',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
-          ...vm.recentFiles.map(_recentItem),
+
+          ...vm.recentFiles.map((file) {
+            return ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              title: Text(file.name),
+              subtitle: Text('${file.pageCount} page • ${file.createdAt}'),
+              onTap: () {
+                // TODO: open preview PDF
+              },
+            );
+          }),
         ],
+
       ],
     );
   }
