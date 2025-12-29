@@ -1,21 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/pdf/pdf_viewmodel.dart';
-import 'package:pdfscanner001/features/scanner/scan_view.dart';
-import 'package:pdfscanner001/features/scanner/scan_viewmodel.dart';
-import 'package:provider/provider.dart';
+import 'package:pdfscanner001/features/scanner/document_scanner_service.dart';
 
-import '../features/home/home_viewmodel.dart';
+import '../features/documents/document_item.dart';
+
+import '../features/scan_result_preview/scan_result_screen.dart';
 
 class ScanMenuOverlay extends StatelessWidget {
   final VoidCallback onClose;
+  // 🔴 THÊM FIELD NÀY
+  final void Function(DocumentItem? doc) onScanCompleted;
 
-  const ScanMenuOverlay({super.key, required this.onClose});
+  const ScanMenuOverlay({
+    super.key,
+    required this.onClose,
+    required this.onScanCompleted, // 🔴 BẮT BUỘC
+  });
+
+  // ===== CAMERA FLOW =====
+  Future<void> _onCameraPressed(BuildContext context) async {
+    // ❌ KHÔNG onClose ở đây
+    // onClose();
+    final scanner = DocumentScannerService();
+    final images = await scanner.scan();
+    scanner.dispose();
+    // 👉 ĐÓNG OVERLAY SAU KHI SCAN XONG
+    onClose();
+    if (images.isEmpty) {
+      debugPrint('🚫 User cancelled scan');
+      return;
+    }
+    final doc = await Navigator.push<DocumentItem>(
+      context,
+      MaterialPageRoute(builder: (_) => ScanResultScreen(imageUris: images)),
+    );
+
+    debugPrint('🏠 HOME RECEIVED DOC: ${doc?.id}');
+    // 🔴 GỌI CALLBACK
+    onScanCompleted(doc);
+  }
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
 
-    // 🔹 FAB centerDocked
+    // FAB position
     final fabRadius = 28.0;
     final fabCenterX = media.size.width / 2;
     final fabTopY =
@@ -29,16 +57,19 @@ class ScanMenuOverlay extends StatelessWidget {
           children: [
             Positioned(
               bottom: media.size.height - fabTopY,
-              left: fabCenterX - 140, // width popup / 2
+              left: fabCenterX - 140,
               child: GestureDetector(
-                onTap: () {},
+                onTap: () {}, // chặn tap xuyên
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _BubbleMenu(
-                      onSelect: (value) {
-                        onClose();
-                        debugPrint('Selected: $value');
+                      onCameraTap: () => _onCameraPressed(context),
+                      onLibraryTap: () {
+                        // TODO: chọn ảnh từ gallery
+                      },
+                      onImportTap: () {
+                        // TODO: import PDF
                       },
                     ),
                     CustomPaint(
@@ -56,15 +87,21 @@ class ScanMenuOverlay extends StatelessWidget {
   }
 }
 
-class _BubbleMenu extends StatelessWidget {
-  final Function(String) onSelect;
+// =================== MENU ===================
 
-  const _BubbleMenu({required this.onSelect});
+class _BubbleMenu extends StatelessWidget {
+  final VoidCallback onCameraTap;
+  final VoidCallback onLibraryTap;
+  final VoidCallback onImportTap;
+
+  const _BubbleMenu({
+    required this.onCameraTap,
+    required this.onLibraryTap,
+    required this.onImportTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<ScanViewModel>();
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -79,15 +116,14 @@ class _BubbleMenu extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
-          _menuButton('Camera', () {
-            onSelect('camera');
-            context.read<HomeViewModel>().openScanner(context);
-          }),
 
+          _menuButton('Camera', onCameraTap),
           const SizedBox(height: 12),
-          _menuButton('From Library', () => onSelect('library')),
+
+          _menuButton('From Library', onLibraryTap),
           const SizedBox(height: 12),
-          _menuButton('Import File', () => onSelect('import')),
+
+          _menuButton('Import File', onImportTap),
         ],
       ),
     );
@@ -99,7 +135,7 @@ class _BubbleMenu extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 44,
-        width: 120,
+        width: 140,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: const Color(0xFFF2F2F2),
@@ -113,6 +149,8 @@ class _BubbleMenu extends StatelessWidget {
     );
   }
 }
+
+// =================== TRIANGLE ===================
 
 class _TrianglePainter extends CustomPainter {
   @override

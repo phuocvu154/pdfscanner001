@@ -1,52 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../widgets/scan_menu_overlay.dart';
-import '../documents/document_item.dart';
-import '../documents/document_repository.dart';
-import '../scanner/scanner_view.dart';
-
-enum HomeTab { myFiles, convertFiles }
-
-class RecentFile {
-  final String name;
-  final String date;
-  final String info;
-
-  RecentFile({required this.name, required this.date, required this.info});
-}
+import '../documents/document_viewmodel.dart';
+import '../folders/folder_repository.dart';
+import 'home_types.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  final DocumentRepository _repository;
+  final FolderRepository folderRepo;
 
-  List<DocumentItem> recentFiles = [];
+  List<Map<String, dynamic>> folders = [];
 
   HomeTab _currentTab = HomeTab.myFiles;
-
   HomeTab get currentTab => _currentTab;
 
-  HomeViewModel(this._repository) {
-    loadFiles();
+  RecentFilter _filter = RecentFilter.lastWeek;
+  RecentFilter get filter => _filter;
+
+  HomeViewModel(this.folderRepo) {
+    loadFolders();
   }
 
-  void loadFiles() {
-    recentFiles = _repository.getDocuments();
+  void loadFolders() {
+    folders = folderRepo.getFolders();
     notifyListeners();
   }
-
-  // // giả lập data
-  // final List<RecentFile> recentFiles = [
-  //   RecentFile(
-  //     name: 'Scan Docly December 11(1).png',
-  //     date: 'December 15, 2025',
-  //     info: '1 page, 68KB',
-  //   ),
-  //   RecentFile(
-  //     name: 'Scan Docly December 11(1).pdf',
-  //     date: 'December 15, 2025',
-  //     info: '1 page, 68KB',
-  //   ),
-  // ];
-
-  bool get hasRecent => recentFiles.isNotEmpty;
 
   void changeTab(HomeTab tab) {
     if (_currentTab == tab) return;
@@ -54,18 +32,52 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void changeFilter(RecentFilter value) {
+    if (_filter == value) return;
+    _filter = value;
+    notifyListeners();
+  }
+
   void onScanPressed(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControlled: false,
-      builder: (_) => ScanMenuOverlay(onClose: () {}),
+      builder: (sheetContext) {
+        return ScanMenuOverlay(
+          onClose: () => Navigator.of(sheetContext).pop(),
+
+          onScanCompleted: (doc) {
+            Navigator.of(sheetContext).pop(); // đảm bảo đóng sheet
+
+            if (doc != null) {
+              debugPrint('📥 ADD DOC TO DOCUMENTS VM');
+
+              context.read<DocumentsViewModel>().addDocument(doc);
+
+              debugPrint(
+                '📥 DOCS COUNT: ${context.read<DocumentsViewModel>().documents.length}',
+              );
+            }
+          },
+        );
+      },
     );
   }
 
-  void openScanner(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ScannerScreen()));
+  Future<void> createFolder(String name) async {
+    if (name.trim().isEmpty) return;
+    await folderRepo.addFolder(name.trim());
+    loadFolders();
+  }
+
+  Future<void> deleteFolder(String id) async {
+    await folderRepo.deleteFolder(id);
+    loadFolders();
+  }
+
+  Future<void> renameFolder(String id, String newName) async {
+    if (newName.trim().isEmpty) return;
+    await folderRepo.renameFolder(id: id, newName: newName.trim());
+    loadFolders();
   }
 }

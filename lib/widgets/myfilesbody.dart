@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/home/home_viewmodel.dart';
+import 'package:provider/provider.dart';
+
+import '../features/documents/document_item.dart';
+import '../features/documents/document_viewmodel.dart';
+import '../features/home/home_types.dart';
+import '../features/home/home_viewmodel.dart';
+import '../features/pdf/pdf_view/pdf_view_screen.dart';
+
+import '../features/scan_result_preview/scan_result_screen.dart';
+import 'myfiles_widgets.dart';
 
 class MyFilesBody extends StatelessWidget {
   final HomeViewModel vm;
@@ -8,129 +17,182 @@ class MyFilesBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final docsVm = context.watch<DocumentsViewModel>();
+
+    final recentDocs = _filterRecent(docsVm.documents, vm.filter);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _folderCard(
-          icon: Icons.folder,
-          title: 'All folders',
-          subtitle: 'Empty, 0KB',
-        ),
-        const SizedBox(height: 12),
-        _folderCard(
-          icon: Icons.bookmark,
-          title: 'Bookmark',
-          subtitle: 'Empty, 0KB',
+        // ===== FOLDERS =====
+        ...vm.folders.map(
+          (folder) => folderCard(
+            context: context,
+            folderId: folder['id'],
+            title: folder['name'],
+            onMore: () {
+              showFolderMenu(
+                context,
+                folderId: folder['id'],
+                onRename: () {
+                  showRenameFolderDialog(
+                    context,
+                    folderId: folder['id'],
+                    oldName: folder['name'],
+                  );
+                },
+              );
+            },
+          ),
         ),
 
-        // 🔥 CHỈ HIỆN KHI KHÔNG EMPTY
-       if (vm.hasRecent) ...[
-          const SizedBox(height: 24),
+        // ===== RECENTLY =====
+        if (recentDocs.isNotEmpty) ...[
+          const SizedBox(height: 8),
           const Text(
             'Recently',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
 
-          ...vm.recentFiles.map((file) {
-            return ListTile(
-              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-              title: Text(file.name),
-              subtitle: Text('${file.pageCount} page • ${file.createdAt}'),
-              onTap: () {
-                // TODO: open preview PDF
-              },
-            );
-          }),
-        ],
+          recentFilter(vm),
+          const SizedBox(height: 12),
 
+          ...recentDocs.map((file) => DocumentRow(file: file)),
+        ],
       ],
     );
   }
 }
 
-Widget _folderCard({
-  required IconData icon,
-  required String title,
-  required String subtitle,
-}) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: const Color(0xFFEAF2FF),
-          child: Icon(icon, color: Colors.blue),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(color: Colors.grey)),
-            ],
-          ),
-        ),
-        const Icon(Icons.more_horiz),
-      ],
-    ),
-  );
+List<DocumentItem> _filterRecent(List<DocumentItem> docs, RecentFilter filter) {
+  final now = DateTime.now();
+
+  return docs.where((f) {
+    switch (filter) {
+      case RecentFilter.lastWeek:
+        return f.createdAt.isAfter(now.subtract(const Duration(days: 7)));
+      case RecentFilter.lastMonth:
+        return f.createdAt.isAfter(now.subtract(const Duration(days: 30)));
+      case RecentFilter.lastYear:
+        return f.createdAt.isAfter(now.subtract(const Duration(days: 365)));
+    }
+  }).toList();
 }
 
-Widget _recentItem(RecentFile file) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 64,
-            color: Colors.grey.shade300,
-            child: const Icon(Icons.insert_drive_file, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  file.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  file.date,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                Text(
-                  file.info,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+class DocumentRow extends StatelessWidget {
+  final DocumentItem file;
+
+  const DocumentRow({super.key, required this.file});
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<DocumentsViewModel>();
+
+    
+    
+
+    return GestureDetector(
+      onLongPress: () {
+        if (!vm.selectionMode) {
+          vm.enterSelection(file);
+        }
+      },
+      onTap: () {
+        if (vm.selectionMode) {
+          vm.toggleSelect(file);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PdfViewScreen(document: file)),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(width: 48, height: 64, color: Colors.grey.shade300),
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    file.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${file.pageCount} page • ${formatDate(file.createdAt)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
+
+            if (vm.selectionMode)
+              Checkbox(
+                value: vm.isSelected(file),
+                onChanged: (_) => vm.toggleSelect(file),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.more_horiz),
+                onPressed: () => _showRecentItemMenu(context, file),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showRecentItemMenu(BuildContext context, DocumentItem file) {
+  showModalBottomSheet(
+    context: context,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    builder: (_) => Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MenuItem(
+            'Open',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PdfViewScreen(document: file),
+                ),
+              );
+            },
           ),
-          const Icon(Icons.share, size: 20),
+          MenuItem(
+            'Move to folder',
+            onTap: () {
+              Navigator.pop(context);
+              showMoveToFolderDialog(context, document: file);
+            },
+          ),
+
+          MenuItem(
+            'Delete',
+            destructive: true,
+            onTap: () async {
+              Navigator.pop(context);
+              await context.read<DocumentsViewModel>().deleteDocument(file.id);
+            },
+          ),
         ],
       ),
     ),

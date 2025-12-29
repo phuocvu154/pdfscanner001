@@ -1,72 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pdfscanner001/features/home/home_viewmodel.dart';
-import 'package:pdfscanner001/features/scan_result_preview/scan_result_viewmodel.dart';
-import 'package:pdfscanner001/features/scanner/document_scanner_service.dart';
 
 import 'package:provider/provider.dart';
-import 'features/convert_files/view/convert_view.dart';
+
 import 'features/documents/document_viewmodel.dart';
 import 'features/documents/document_item.dart';
 import 'features/documents/document_repository.dart';
+import 'features/folders/folder_repository.dart';
 import 'features/home/home_view.dart';
-import 'features/pdf/pdf_preview_view.dart';
-import 'features/pdf/pdf_repository.dart';
-import 'features/pdf/pdf_viewmodel.dart';
-import 'features/scanner/scan_view.dart';
-import 'features/scanner/scan_viewmodel.dart';
-import 'theme/app_colors.dart';
-import 'widgets/bottom_nav_item.dart';
-import 'widgets/myfilesbody.dart';
-import 'widgets/scan_menu_overlay.dart';
+
+import 'features/pdf/pdf_view/pdf_view_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
+
   Hive.registerAdapter(DocumentItemAdapter());
+
   final docsBox = await Hive.openBox<DocumentItem>('documents_box');
+  final foldersBox = await Hive.openBox('folders');
 
-  final docRepo = DocumentRepository(docsBox);
+  final documentRepo = DocumentRepository(docsBox);
+  final folderRepo = FolderRepository(foldersBox);
 
-  runApp(MyApp(docRepo: docRepo));
+  runApp(MyApp(documentRepo: documentRepo, folderRepo: folderRepo));
 }
 
 class MyApp extends StatelessWidget {
-  final DocumentRepository docRepo;
-  const MyApp({super.key, required this.docRepo});
+  final DocumentRepository documentRepo;
+  final FolderRepository folderRepo;
+
+  const MyApp({
+    super.key,
+    required this.documentRepo,
+    required this.folderRepo,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<DocumentRepository>.value(
-      value: docRepo,
-    ),
-    Provider(create: (_) => DocumentScannerService()),
-        ChangeNotifierProvider(create: (_) => HomeViewModel(docRepo)),
-        // ChangeNotifierProvider(create: (_) => ScanResultViewModel([],docRepo)),
-      
-        ChangeNotifierProvider(create: (_) => ScanViewModel()),
-        ChangeNotifierProvider(create: (_) => DocumentsViewModel(docRepo)),
-        ChangeNotifierProvider(
-          create: (_) => PdfViewModel(PdfRepository(), docRepo),
-        ),
+        // ===== REPOSITORIES =====
+        Provider<DocumentRepository>.value(value: documentRepo),
+        Provider<FolderRepository>.value(value: folderRepo),
 
-        // ChangeNotifierProvider(create: (_) => ToolsViewModel()),
+        // ===== VIEW MODELS =====
+        ChangeNotifierProvider(create: (_) => HomeViewModel(folderRepo)),
+        ChangeNotifierProvider(create: (_) => DocumentsViewModel(documentRepo)),
+        // ChangeNotifierProvider(create: (_) => ScanViewModel()),
+        // ChangeNotifierProvider(
+        //   create: (_) => PdfViewModel(PdfRepository(), documentRepo),
+        // ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'PDF Scanner Demo',
         theme: ThemeData(primarySwatch: Colors.deepPurple),
-        home: const HomeView(), // <-- dùng HomeView đẹp + gộp Documents
+        home: const HomeView(),
         routes: {
-          '/scan': (_) => const ScanView(),
           '/pdfPreview': (context) {
-            final path = ModalRoute.of(context)!.settings.arguments as String;
-            return PdfPreviewView(path: path);
+            final docItem =
+                ModalRoute.of(context)!.settings.arguments as DocumentItem;
+            return PdfViewScreen(document: docItem);
           },
-          // '/tools': (_) => const ToolsView(),
         },
       ),
     );

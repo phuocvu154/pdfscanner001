@@ -1,11 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/documents/document_repository.dart';
 import 'package:provider/provider.dart';
 
-import '../pdf/pdf_viewmodel.dart';
-import '../scanner/document_scanner_service.dart';
-import 'scan_result_viewmodel.dart';
+import '../documents/document_repository.dart';
+import '../scanner/document_compose_viewmodel.dart';
+import 'action_item.dart';
 
 class ScanResultScreen extends StatelessWidget {
   final List<String> imageUris;
@@ -14,43 +13,74 @@ class ScanResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-     return ChangeNotifierProvider(
-      create: (_) => ScanResultViewModel(
+    return ChangeNotifierProvider(
+      create: (_) => DocumentComposeViewModel(
         imageUris,
         context.read<DocumentRepository>(),
       ),
-      child: const _ScanResultView(),
+      child: _ScanResultView(),
     );
   }
 }
 
-class _ScanResultView extends StatelessWidget {
+class _ScanResultView extends StatefulWidget {
   const _ScanResultView();
 
   @override
+  State<_ScanResultView> createState() => _ScanResultViewState();
+}
+
+class _ScanResultViewState extends State<_ScanResultView> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final vm = context.watch<ScanResultViewModel>();
+    final vm = context.watch<DocumentComposeViewModel>();
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: TextButton(
-          onPressed: vm.isAddingPage ? null : vm.addPage,
+          onPressed: vm.isProcessing ? null : vm.addPage,
           child: const Text('Add page'),
         ),
         actions: [
           TextButton(
-            onPressed: () =>
-                context.read<ScanResultViewModel>().onDone(context),
+            onPressed: () async {
+              debugPrint('🟡 DONE BUTTON PRESSED');
+
+              final vm = context.read<DocumentComposeViewModel>();
+
+              debugPrint('🟡 VM TYPE = ${vm.runtimeType}');
+
+              final doc = await vm.save();
+
+              debugPrint('🟡 AFTER SAVE');
+
+              Navigator.pop(context, doc);
+            },
             child: const Text('Done'),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Preview
+          // ===== PREVIEW =====
           Expanded(
             child: PageView.builder(
+              controller: _pageController,
               itemCount: vm.total,
               onPageChanged: vm.onPageChanged,
               itemBuilder: (_, index) {
@@ -65,7 +95,7 @@ class _ScanResultView extends StatelessWidget {
             ),
           ),
 
-          // Page indicator
+          // ===== INDICATOR =====
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
@@ -74,25 +104,32 @@ class _ScanResultView extends StatelessWidget {
             ),
           ),
 
-          // Bottom actions
+          // ===== ACTIONS =====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _ActionItem(
+                ActionItem(
                   icon: Icons.delete,
                   label: 'Delete',
-                  color: Colors.red,
-                  onTap: vm.deleteCurrent,
+                  color: vm.total > 1 ? Colors.red : Colors.grey,
+                  onTap: () {
+                    if (vm.total <= 1) return;
+
+                    vm.deleteCurrent();
+                    _pageController.jumpToPage(
+                      vm.currentIndex.clamp(0, vm.total - 1),
+                    );
+                  },
                 ),
-                _ActionItem(
+                ActionItem(
                   icon: Icons.folder_open,
                   label: 'Organize file',
                   onTap: () {},
                 ),
-                _ActionItem(icon: Icons.edit, label: 'Edit', onTap: () {}),
-                _ActionItem(
+                ActionItem(icon: Icons.edit, label: 'Edit', onTap: () {}),
+                ActionItem(
                   icon: Icons.more_vert,
                   label: 'Other',
                   onTap: () => _showMoreMenu(context, vm),
@@ -101,14 +138,16 @@ class _ScanResultView extends StatelessWidget {
             ),
           ),
 
-          // Share button
+          // ===== SHARE =====
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: vm.share,
+                onPressed: () {
+                  // TODO: implement share after save
+                },
                 child: const Text('Share'),
               ),
             ),
@@ -118,7 +157,14 @@ class _ScanResultView extends StatelessWidget {
     );
   }
 
-  void _showMoreMenu(BuildContext context, ScanResultViewModel vm) {
+  void _comingSoon(BuildContext context, String feature) {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$feature – coming soon')));
+  }
+
+  void _showMoreMenu(BuildContext context, DocumentComposeViewModel vm) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -127,61 +173,18 @@ class _ScanResultView extends StatelessWidget {
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SheetItem('Combine', vm.combine),
-          _SheetItem('Split', vm.split),
-          _SheetItem('Bookmark', vm.bookmark),
-          _SheetItem('Rename', vm.rename),
-          _SheetItem('Set Password', vm.setPassword),
-          _SheetItem('Unset Password', vm.unsetPassword),
+          SheetItem('Rename', () => vm.rename(context)),
+          SheetItem('Combine', () => _comingSoon(context, 'Combine')),
+          SheetItem('Split', () => _comingSoon(context, 'Split')),
+          SheetItem('Bookmark', () => _comingSoon(context, 'Bookmark')),
+          SheetItem('Set Password', () => _comingSoon(context, 'Set password')),
+          SheetItem(
+            'Unset Password',
+            () => _comingSoon(context, 'Unset password'),
+          ),
           const SizedBox(height: 16),
         ],
       ),
-    );
-  }
-}
-
-class _ActionItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? color;
-  final VoidCallback onTap;
-
-  const _ActionItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: color)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetItem extends StatelessWidget {
-  final String title;
-  final VoidCallback onTap;
-
-  const _SheetItem(this.title, this.onTap);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      onTap: () {
-        Navigator.pop(context);
-        onTap();
-      },
     );
   }
 }

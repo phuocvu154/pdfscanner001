@@ -4,19 +4,28 @@ import 'document_item.dart';
 
 class DocumentRepository {
   final Box<DocumentItem> box;
+
   final _uuid = const Uuid();
 
   DocumentRepository(this.box);
 
+  // ===== GET =====
   List<DocumentItem> getDocuments() {
-    final list = box.values.toList();
+    final docs = box.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // sắp xếp mới nhất lên đầu
-    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return list;
+    return List.unmodifiable(docs);
   }
 
-  DocumentItem addDocument({
+  List<DocumentItem> getDocumentsByFolder(String folderId) {
+    final docs = box.values.where((d) => d.folderId == folderId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return List.unmodifiable(docs);
+  }
+
+  // ===== CREATE =====
+  DocumentItem createDocument({
     required String pdfPath,
     required int pageCount,
     String? name,
@@ -29,15 +38,24 @@ class DocumentRepository {
       pageCount: pageCount,
     );
 
-    box.put(doc.id, doc);
+    box.put(doc.id, doc); // 🔴 KEY = id
     return doc;
   }
 
-  void deleteDocument(String id) {
-    box.delete(id);
+  // ===== DELETE =====
+  Future<void> deleteDocument(String id) async {
+    await box.delete(id);
   }
 
-  Future<void> saveFile(DocumentItem file) async {
-    await box.add(file);
+  // ===== MOVE =====
+  Future<void> moveToFolder({
+    required String documentId,
+    required String folderId,
+  }) async {
+    final old = box.get(documentId);
+    if (old == null) return;
+
+    final updated = old.copyWith(folderId: folderId);
+    await box.put(documentId, updated);
   }
 }

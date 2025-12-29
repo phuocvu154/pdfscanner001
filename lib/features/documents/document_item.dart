@@ -6,6 +6,7 @@ class DocumentItem {
   final String path;
   final DateTime createdAt;
   final int pageCount;
+  final String? folderId;
 
   DocumentItem({
     required this.id,
@@ -13,8 +14,30 @@ class DocumentItem {
     required this.path,
     required this.createdAt,
     required this.pageCount,
+    this.folderId,
   });
+
+  DocumentItem copyWith({
+    String? name,
+    String? path,
+    DateTime? createdAt,
+    int? pageCount,
+    String? folderId,
+  }) {
+    return DocumentItem(
+      id: id,
+      name: name ?? this.name,
+      path: path ?? this.path,
+      createdAt: createdAt ?? this.createdAt,
+      pageCount: pageCount ?? this.pageCount,
+      folderId: folderId ?? this.folderId,
+    );
+  }
 }
+
+
+
+
 
 /// Adapter để Hive biết cách đọc/ghi DocumentItem
 class DocumentItemAdapter extends TypeAdapter<DocumentItem> {
