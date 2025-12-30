@@ -1,14 +1,21 @@
 import 'package:flutter/foundation.dart';
-import 'document_item.dart';
-import 'document_repository.dart';
+import 'package:pdfscanner001/features/documents/document_item.dart';
+import 'package:pdfscanner001/features/documents/document_repository.dart';
 
 class DocumentsViewModel extends ChangeNotifier {
   final DocumentRepository repo;
+  List<DocumentItem> documents = [];
 
   DocumentsViewModel(this.repo);
 
+  void loadDocuments() {
+    // 🔥 Tạo list mới có thể thay đổi được
+    documents = repo.getDocuments();
+    debugPrint('📥 DOCS COUNT = ${documents.length}');
+    notifyListeners();
+  }
+
   // ===== STATE =====
-  final List<DocumentItem> _documents = [];
   final Set<String> _selectedIds = {};
 
   bool _selectionMode = false;
@@ -19,26 +26,6 @@ class DocumentsViewModel extends ChangeNotifier {
   bool get selectionMode => _selectionMode;
   bool get isLoading => _isLoading;
   Set<String> get selectedIds => _selectedIds;
-
-  List<DocumentItem> get documents {
-    if (_query.isEmpty) return List.unmodifiable(_documents);
-
-    final q = _query.toLowerCase();
-    return _documents.where((d) => d.name.toLowerCase().contains(q)).toList();
-  }
-
-  // ===== LOAD =====
-  Future<void> loadDocuments() async {
-    _isLoading = true;
-    notifyListeners();
-
-    _documents
-      ..clear()
-      ..addAll(repo.getDocuments());
-
-    _isLoading = false;
-    notifyListeners();
-  }
 
   // ===== SELECTION =====
   void enterSelection(DocumentItem doc) {
@@ -65,7 +52,7 @@ class DocumentsViewModel extends ChangeNotifier {
     _selectionMode = true;
     _selectedIds
       ..clear()
-      ..addAll(documents.map((e) => e.id)); // 🔥 list đang hiển thị
+      ..addAll(documents.map((e) => e.id));
     notifyListeners();
   }
 
@@ -83,25 +70,42 @@ class DocumentsViewModel extends ChangeNotifier {
       await repo.moveToFolder(documentId: id, folderId: folderId);
     }
     clearSelection();
-    await loadDocuments();
+    loadDocuments();
   }
 
   // ===== CRUD =====
   void addDocument(DocumentItem doc) {
-    _documents.insert(0, doc);
+    documents.insert(0, doc);
     debugPrint('📄 ADD DOC: ${doc.name}');
     notifyListeners();
   }
 
   Future<void> deleteDocument(String id) async {
-    repo.deleteDocument(id);
-    _documents.removeWhere((d) => d.id == id);
+    // 1️⃣ Xóa khỏi repository
+    await repo.deleteDocument(id);
+
+    // 2️⃣ Xóa khỏi list local NGAY LẬP TỨC
+    documents.removeWhere((d) => d.id == id);
+
+    // 3️⃣ Xóa khỏi selection nếu đang được chọn
+    _selectedIds.remove(id);
+
+    // 4️⃣ Thoát selection mode nếu không còn item nào được chọn
+    if (_selectedIds.isEmpty && _selectionMode) {
+      _selectionMode = false;
+    }
+
+    // 5️⃣ Notify listeners để UI cập nhật
     notifyListeners();
+
+    debugPrint('🗑️ DELETE DOC: $id | COUNT=${documents.length}');
   }
 
   Future<void> moveDocumentToFolder(String documentId, String folderId) async {
     await repo.moveToFolder(documentId: documentId, folderId: folderId);
-    notifyListeners();
+
+    // 🔥 Cập nhật lại list sau khi move
+    loadDocuments();
   }
 
   // ===== SEARCH =====

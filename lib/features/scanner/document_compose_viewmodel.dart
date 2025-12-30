@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:uuid/uuid.dart';
 
 import '../documents/document_item.dart';
 import '../documents/document_repository.dart';
@@ -72,42 +73,93 @@ class DocumentComposeViewModel extends ChangeNotifier {
   }
 
   // ===== DONE (SAVE PDF) =====
-  Future<DocumentItem> save() async {
-    _isProcessing = true;
-    notifyListeners();
+  // Future<DocumentItem> save() async {
+  //   _isProcessing = true;
+  //   notifyListeners();
 
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final name = _fileName.isNotEmpty
-          ? _fileName
-          : 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+  //   try {
+  //     final dir = await getApplicationDocumentsDirectory();
+  //     final name = _fileName.isNotEmpty
+  //         ? _fileName
+  //         : 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-      final pdfPath = '${dir.path}/$name';
+  //     final pdfPath = '${dir.path}/$name';
 
-      final pdf = pw.Document();
+  //     final pdf = pw.Document();
 
-      for (final imagePath in _imageUris) {
-        final bytes = File(imagePath).readAsBytesSync();
-        final image = pw.MemoryImage(bytes);
-        pdf.addPage(pw.Page(build: (_) => pw.Center(child: pw.Image(image))));
-      }
+  //     for (final imagePath in _imageUris) {
+  //       final bytes = File(imagePath).readAsBytesSync();
+  //       final image = pw.MemoryImage(bytes);
+  //       pdf.addPage(pw.Page(build: (_) => pw.Center(child: pw.Image(image))));
+  //     }
 
-      final file = File(pdfPath);
-      await file.writeAsBytes(await pdf.save());
+  //     final file = File(pdfPath);
+  //     await file.writeAsBytes(await pdf.save());
 
-      // 🔴 TẠO & LƯU DOCUMENT (SOURCE OF TRUTH)
-      final doc = _repo.createDocument(
-        pdfPath: pdfPath,
-        pageCount: _imageUris.length,
-        name: name,
+  //     // 🔴 TẠO & LƯU DOCUMENT (SOURCE OF TRUTH)
+  //     final doc = _repo.createDocument(
+  //       pdfPath: pdfPath,
+  //       pageCount: _imageUris.length,
+  //       name: name,
+  //     );
+  //     debugPrint('✅ SAVE PDF OK: ${doc.name} | ${doc.id}');
+  //     return doc;
+  //   } finally {
+  //     _isProcessing = false;
+  //     notifyListeners();
+  //   }
+  // }
+  Future<bool> save() async {
+  if (_imageUris.isEmpty) return false;
+
+  _isProcessing = true;
+  notifyListeners();
+
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+
+    final name = _fileName.isNotEmpty
+        ? '$_fileName.pdf'
+        : 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+    final pdfPath = '${dir.path}/$name';
+
+    final pdf = pw.Document();
+
+    for (final imagePath in _imageUris) {
+      final bytes = File(imagePath).readAsBytesSync();
+      final image = pw.MemoryImage(bytes);
+
+      pdf.addPage(
+        pw.Page(
+          build: (_) => pw.Center(child: pw.Image(image)),
+        ),
       );
-      debugPrint('✅ SAVE PDF OK: ${doc.name} | ${doc.id}');
-      return doc;
-    } finally {
-      _isProcessing = false;
-      notifyListeners();
     }
+
+    final file = File(pdfPath);
+    await file.writeAsBytes(await pdf.save());
+
+    // 🔴 SOURCE OF TRUTH DUY NHẤT
+    final doc = _repo.createDocument(
+      pdfPath: pdfPath,
+      pageCount: _imageUris.length,
+      name: name,
+    );
+
+    debugPrint('✅ SAVE PDF OK: ${doc.name} | ${doc.id}');
+    return true;
+  } catch (e, s) {
+    debugPrint('❌ SAVE PDF FAILED: $e');
+    debugPrint('$s');
+    return false;
+  } finally {
+    _isProcessing = false;
+    notifyListeners();
   }
+}
+
+  
 
   void rename(BuildContext context) {
     final controller = TextEditingController(text: _fileName);

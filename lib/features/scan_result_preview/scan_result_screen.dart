@@ -61,15 +61,12 @@ class _ScanResultViewState extends State<_ScanResultView> {
             onPressed: () async {
               debugPrint('🟡 DONE BUTTON PRESSED');
 
-              final vm = context.read<DocumentComposeViewModel>();
-
-              debugPrint('🟡 VM TYPE = ${vm.runtimeType}');
-
-              final doc = await vm.save();
-
+              final ok = await context.read<DocumentComposeViewModel>().save();
+              debugPrint('🟡 VM TYPE = ${ok.runtimeType}');
               debugPrint('🟡 AFTER SAVE');
-
-              Navigator.pop(context, doc);
+              if (ok && context.mounted) {
+                Navigator.pop(context, true);
+              }
             },
             child: const Text('Done'),
           ),

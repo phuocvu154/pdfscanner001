@@ -27,5 +27,6 @@ class FolderDetailViewModel extends ChangeNotifier {
   ) async {
     repo.deleteDocument(documentId);
     load();
+    notifyListeners();
   }
 }

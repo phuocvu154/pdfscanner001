@@ -158,29 +158,57 @@ class HomeViewState extends State<HomeView> {
     );
   }
 
+  //   void _showScanMenu(BuildContext context) {
+  //     final overlay = Overlay.of(context);
+  //     late OverlayEntry entry;
+
+  //     entry = OverlayEntry(
+  //       builder: (_) => ScanMenuOverlay(
+  //         onClose: () {
+  //           entry.remove();
+  //         },
+
+  //         // 🔴 BẮT BUỘC PHẢI CÓ
+  //         onScanCompleted: (doc) {
+  //   entry.remove();
+
+  //   if (doc == null) return;
+
+  //   debugPrint('🏠 HOME RECEIVED DOC: ${doc.id}');
+
+  //   // 1️⃣ add vào DocumentsViewModel (optional)
+  //   context.read<DocumentsViewModel>().addDocument(doc);
+
+  //   // 2️⃣ 🔥 QUAN TRỌNG: reload HomeViewModel
+  //   context.read<HomeViewModel>().loadFiles();
+
+  //   debugPrint(
+  //     '📥 HOME RECENT COUNT: ${context.read<HomeViewModel>().recentFiles.length}',
+  //   );
+  // }
+
+  //       ),
+  //     );
+
+  //     overlay.insert(entry);
+  //   }
   void _showScanMenu(BuildContext context) {
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
 
     entry = OverlayEntry(
       builder: (_) => ScanMenuOverlay(
-        onClose: () {
-          entry.remove();
-        },
+        onClose: () => entry.remove(),
+        onScanCompleted: (_) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
 
-        // 🔴 BẮT BUỘC PHẢI CÓ
-        onScanCompleted: (doc) {
-          entry.remove();
-
-          if (doc != null) {
-            debugPrint('🏠 HOME RECEIVED DOC: ${doc.id}');
-
-            context.read<DocumentsViewModel>().addDocument(doc);
+            context.read<DocumentsViewModel>().loadDocuments();
 
             debugPrint(
               '📥 DOCS COUNT: ${context.read<DocumentsViewModel>().documents.length}',
             );
-          }
+          });
         },
       ),
     );

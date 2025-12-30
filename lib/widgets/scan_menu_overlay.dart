@@ -29,14 +29,14 @@ class ScanMenuOverlay extends StatelessWidget {
       debugPrint('🚫 User cancelled scan');
       return;
     }
-    final doc = await Navigator.push<DocumentItem>(
+    final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => ScanResultScreen(imageUris: images)),
     );
 
-    debugPrint('🏠 HOME RECEIVED DOC: ${doc?.id}');
-    // 🔴 GỌI CALLBACK
-    onScanCompleted(doc);
+    if (changed == true) {
+      onScanCompleted(null);
+    }
   }
 
   @override

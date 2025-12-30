@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../widgets/scan_menu_overlay.dart';
+import '../documents/document_item.dart';
 import '../documents/document_viewmodel.dart';
 import '../folders/folder_repository.dart';
 import 'home_types.dart';
@@ -16,6 +17,8 @@ class HomeViewModel extends ChangeNotifier {
 
   RecentFilter _filter = RecentFilter.lastWeek;
   RecentFilter get filter => _filter;
+
+  
 
   HomeViewModel(this.folderRepo) {
     loadFolders();
@@ -47,17 +50,22 @@ class HomeViewModel extends ChangeNotifier {
           onClose: () => Navigator.of(sheetContext).pop(),
 
           onScanCompleted: (doc) {
-            Navigator.of(sheetContext).pop(); // đảm bảo đóng sheet
+            // 🔴 ĐÓNG SHEET TRƯỚC
+            Navigator.of(sheetContext).pop();
 
-            if (doc != null) {
+            if (doc == null) return;
+
+            // 🔴 QUAN TRỌNG: delay 1 frame để context ổn định
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) return;
+
               debugPrint('📥 ADD DOC TO DOCUMENTS VM');
 
-              context.read<DocumentsViewModel>().addDocument(doc);
+              final docsVm = context.read<DocumentsViewModel>();
+              docsVm.addDocument(doc);
 
-              debugPrint(
-                '📥 DOCS COUNT: ${context.read<DocumentsViewModel>().documents.length}',
-              );
-            }
+              debugPrint('📥 DOCS COUNT: ${docsVm.documents.length}');
+            });
           },
         );
       },

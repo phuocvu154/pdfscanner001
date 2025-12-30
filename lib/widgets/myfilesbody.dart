@@ -7,7 +7,6 @@ import '../features/home/home_types.dart';
 import '../features/home/home_viewmodel.dart';
 import '../features/pdf/pdf_view/pdf_view_screen.dart';
 
-import '../features/scan_result_preview/scan_result_screen.dart';
 import 'myfiles_widgets.dart';
 
 class MyFilesBody extends StatelessWidget {
@@ -17,9 +16,9 @@ class MyFilesBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final docsVm = context.watch<DocumentsViewModel>();
+    final docsVm = context.watch<DocumentsViewModel>().documents;
 
-    final recentDocs = _filterRecent(docsVm.documents, vm.filter);
+    final recentDocs = _filterRecent(docsVm, vm.filter);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -88,9 +87,6 @@ class DocumentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<DocumentsViewModel>();
-
-    
-    
 
     return GestureDetector(
       onLongPress: () {

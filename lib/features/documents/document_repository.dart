@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import 'document_item.dart';
@@ -14,36 +15,38 @@ class DocumentRepository {
     final docs = box.values.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    return List.unmodifiable(docs);
+    return docs;
   }
 
   List<DocumentItem> getDocumentsByFolder(String folderId) {
     final docs = box.values.where((d) => d.folderId == folderId).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    return List.unmodifiable(docs);
+    return docs;
   }
 
   // ===== CREATE =====
   DocumentItem createDocument({
     required String pdfPath,
     required int pageCount,
-    String? name,
+    required String name,
   }) {
+  
     final doc = DocumentItem(
-      id: _uuid.v4(),
-      name: name ?? 'Scan ${DateTime.now().toIso8601String()}',
+      id: const Uuid().v4(),
+      name: name,
       path: pdfPath,
       createdAt: DateTime.now(),
       pageCount: pageCount,
     );
 
-    box.put(doc.id, doc); // 🔴 KEY = id
+    box.put(doc.id, doc); // 🔴 SOURCE OF TRUTH
     return doc;
   }
 
   // ===== DELETE =====
   Future<void> deleteDocument(String id) async {
+    debugPrint("id delete: $id");
     await box.delete(id);
   }
 
