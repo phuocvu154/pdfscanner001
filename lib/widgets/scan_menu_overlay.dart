@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdfscanner001/features/scanner/document_scanner_service.dart';
+import 'package:pdfscanner001/features/scan_result_preview/scan_service.dart';
 
 import '../features/documents/document_item.dart';
 
@@ -29,13 +29,13 @@ class ScanMenuOverlay extends StatelessWidget {
       debugPrint('🚫 User cancelled scan');
       return;
     }
-    final changed = await Navigator.push<bool>(
+    final DocumentItem? doc = await Navigator.push<DocumentItem>(
       context,
       MaterialPageRoute(builder: (_) => ScanResultScreen(imageUris: images)),
     );
 
-    if (changed == true) {
-      onScanCompleted(null);
+    if (doc != null) {
+      onScanCompleted(doc);
     }
   }
 

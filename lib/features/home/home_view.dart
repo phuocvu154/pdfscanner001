@@ -8,7 +8,7 @@ import '../../widgets/myfilesbody.dart';
 import '../../widgets/scan_menu_overlay.dart';
 import '../convert_files/view/convert_view.dart';
 import '../documents/document_item.dart';
-import '../scan_result_preview/scan_result_screen.dart';
+
 import 'home_types.dart';
 import 'home_viewmodel.dart';
 

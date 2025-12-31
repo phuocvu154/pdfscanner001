@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 import '../../documents/document_item.dart';
-import '../../scanner/document_scanner_service.dart';
+import '../../scan_result_preview/scan_service.dart';
 
 import '../pdf_edit_service.dart';
 

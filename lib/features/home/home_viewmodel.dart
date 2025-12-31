@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../widgets/scan_menu_overlay.dart';
-import '../documents/document_item.dart';
+
 import '../documents/document_viewmodel.dart';
 import '../folders/folder_repository.dart';
 import 'home_types.dart';

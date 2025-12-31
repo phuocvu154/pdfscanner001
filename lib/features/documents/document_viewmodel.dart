@@ -9,9 +9,9 @@ class DocumentsViewModel extends ChangeNotifier {
   DocumentsViewModel(this.repo);
 
   void loadDocuments() {
-    // 🔥 Tạo list mới có thể thay đổi được
-    documents = repo.getDocuments();
-    debugPrint('📥 DOCS COUNT = ${documents.length}');
+    documents
+      ..clear()
+      ..addAll(repo.getDocuments());
     notifyListeners();
   }
 
@@ -76,29 +76,13 @@ class DocumentsViewModel extends ChangeNotifier {
   // ===== CRUD =====
   void addDocument(DocumentItem doc) {
     documents.insert(0, doc);
-    debugPrint('📄 ADD DOC: ${doc.name}');
     notifyListeners();
   }
 
   Future<void> deleteDocument(String id) async {
-    // 1️⃣ Xóa khỏi repository
     await repo.deleteDocument(id);
-
-    // 2️⃣ Xóa khỏi list local NGAY LẬP TỨC
     documents.removeWhere((d) => d.id == id);
-
-    // 3️⃣ Xóa khỏi selection nếu đang được chọn
-    _selectedIds.remove(id);
-
-    // 4️⃣ Thoát selection mode nếu không còn item nào được chọn
-    if (_selectedIds.isEmpty && _selectionMode) {
-      _selectionMode = false;
-    }
-
-    // 5️⃣ Notify listeners để UI cập nhật
     notifyListeners();
-
-    debugPrint('🗑️ DELETE DOC: $id | COUNT=${documents.length}');
   }
 
   Future<void> moveDocumentToFolder(String documentId, String folderId) async {

@@ -11,6 +11,7 @@ import 'features/folders/folder_repository.dart';
 import 'features/home/home_view.dart';
 
 import 'features/pdf/pdf_view/pdf_view_screen.dart';
+import 'features/scan_result_preview/scan_viewmodel.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +50,11 @@ class MyApp extends StatelessWidget {
         // ===== VIEW MODELS =====
         ChangeNotifierProvider(create: (_) => HomeViewModel(folderRepo)),
         ChangeNotifierProvider(create: (_) => DocumentsViewModel(documentRepo)),
+
+        ChangeNotifierProvider(
+          create: (_) => DocumentComposeViewModel([], documentRepo),
+        ),
+
         // ChangeNotifierProvider(create: (_) => ScanViewModel()),
         // ChangeNotifierProvider(
         //   create: (_) => PdfViewModel(PdfRepository(), documentRepo),

@@ -7,7 +7,8 @@ import 'package:uuid/uuid.dart';
 
 import '../documents/document_item.dart';
 import '../documents/document_repository.dart';
-import '../scanner/document_scanner_service.dart';
+import 'scan_service.dart';
+import 'package:path/path.dart' as path;
 
 class DocumentComposeViewModel extends ChangeNotifier {
   final DocumentRepository _repo;
@@ -72,15 +73,17 @@ class DocumentComposeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ===== DONE (SAVE PDF) =====
-  // Future<DocumentItem> save() async {
+  // Future<bool> save() async {
+  //   if (_imageUris.isEmpty) return false;
+
   //   _isProcessing = true;
   //   notifyListeners();
 
   //   try {
   //     final dir = await getApplicationDocumentsDirectory();
+
   //     final name = _fileName.isNotEmpty
-  //         ? _fileName
+  //         ? '$_fileName.pdf'
   //         : 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
   //     final pdfPath = '${dir.path}/$name';
@@ -90,39 +93,64 @@ class DocumentComposeViewModel extends ChangeNotifier {
   //     for (final imagePath in _imageUris) {
   //       final bytes = File(imagePath).readAsBytesSync();
   //       final image = pw.MemoryImage(bytes);
+
   //       pdf.addPage(pw.Page(build: (_) => pw.Center(child: pw.Image(image))));
   //     }
 
   //     final file = File(pdfPath);
   //     await file.writeAsBytes(await pdf.save());
 
-  //     // 🔴 TẠO & LƯU DOCUMENT (SOURCE OF TRUTH)
+  //     // 🔴 SOURCE OF TRUTH DUY NHẤT
   //     final doc = _repo.createDocument(
   //       pdfPath: pdfPath,
   //       pageCount: _imageUris.length,
   //       name: name,
   //     );
+
   //     debugPrint('✅ SAVE PDF OK: ${doc.name} | ${doc.id}');
-  //     return doc;
+  //     return true;
+  //   } catch (e, s) {
+  //     debugPrint('❌ SAVE PDF FAILED: $e');
+  //     debugPrint('$s');
+  //     return false;
   //   } finally {
   //     _isProcessing = false;
   //     notifyListeners();
   //   }
   // }
-  Future<bool> save() async {
-  if (_imageUris.isEmpty) return false;
+  Future<DocumentItem> save() async {
+    _isProcessing = true;
+    notifyListeners();
 
-  _isProcessing = true;
-  notifyListeners();
+    try {
+      final pdfPath = await _createPdf();
 
-  try {
+      final doc = DocumentItem(
+        id: const Uuid().v4(),
+        name: path.basename(pdfPath),
+        path: pdfPath,
+        createdAt: DateTime.now(),
+        pageCount: _imageUris.length,
+      );
+
+      await _repo.saveFile(doc);
+
+      debugPrint('✅ SAVE PDF OK: ${doc.path}');
+      return doc;
+    } finally {
+      _isProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String> _createPdf() async {
     final dir = await getApplicationDocumentsDirectory();
 
-    final name = _fileName.isNotEmpty
-        ? '$_fileName.pdf'
+    final fileName = _fileName.isNotEmpty
+        ? _fileName
         : 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-    final pdfPath = '${dir.path}/$name';
+    final pdfPath = path.join(dir.path, fileName);
 
     final pdf = pw.Document();
 
@@ -130,36 +158,14 @@ class DocumentComposeViewModel extends ChangeNotifier {
       final bytes = File(imagePath).readAsBytesSync();
       final image = pw.MemoryImage(bytes);
 
-      pdf.addPage(
-        pw.Page(
-          build: (_) => pw.Center(child: pw.Image(image)),
-        ),
-      );
+      pdf.addPage(pw.Page(build: (_) => pw.Center(child: pw.Image(image))));
     }
 
     final file = File(pdfPath);
     await file.writeAsBytes(await pdf.save());
 
-    // 🔴 SOURCE OF TRUTH DUY NHẤT
-    final doc = _repo.createDocument(
-      pdfPath: pdfPath,
-      pageCount: _imageUris.length,
-      name: name,
-    );
-
-    debugPrint('✅ SAVE PDF OK: ${doc.name} | ${doc.id}');
-    return true;
-  } catch (e, s) {
-    debugPrint('❌ SAVE PDF FAILED: $e');
-    debugPrint('$s');
-    return false;
-  } finally {
-    _isProcessing = false;
-    notifyListeners();
+    return pdfPath;
   }
-}
-
-  
 
   void rename(BuildContext context) {
     final controller = TextEditingController(text: _fileName);

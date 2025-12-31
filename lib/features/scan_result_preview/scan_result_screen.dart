@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../documents/document_repository.dart';
-import '../scanner/document_compose_viewmodel.dart';
+import '../pdf/pdf_edit/edit_page_screen.dart';
+import 'scan_viewmodel.dart';
 import 'action_item.dart';
 
 class ScanResultScreen extends StatelessWidget {
@@ -59,14 +60,8 @@ class _ScanResultViewState extends State<_ScanResultView> {
         actions: [
           TextButton(
             onPressed: () async {
-              debugPrint('🟡 DONE BUTTON PRESSED');
-
-              final ok = await context.read<DocumentComposeViewModel>().save();
-              debugPrint('🟡 VM TYPE = ${ok.runtimeType}');
-              debugPrint('🟡 AFTER SAVE');
-              if (ok && context.mounted) {
-                Navigator.pop(context, true);
-              }
+              final doc = await vm.save();
+              Navigator.pop(context, doc); // 🔥 TRẢ DOC NGƯỢC
             },
             child: const Text('Done'),
           ),
@@ -125,7 +120,23 @@ class _ScanResultViewState extends State<_ScanResultView> {
                   label: 'Organize file',
                   onTap: () {},
                 ),
-                ActionItem(icon: Icons.edit, label: 'Edit', onTap: () {}),
+                ActionItem(
+                  icon: Icons.edit,
+                  label: 'Edit',
+                  onTap: () async {
+                    final vm = context.read<DocumentComposeViewModel>();
+                    final doc = await vm.save();
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditPageScreen(
+                          document: doc, // 🔴 LẤY Ở ĐÂY
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 ActionItem(
                   icon: Icons.more_vert,
                   label: 'Other',

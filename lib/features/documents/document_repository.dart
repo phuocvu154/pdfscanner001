@@ -10,6 +10,10 @@ class DocumentRepository {
 
   DocumentRepository(this.box);
 
+  Future<void> saveFile(DocumentItem doc) async {
+    await box.put(doc.id, doc);
+  }
+
   // ===== GET =====
   List<DocumentItem> getDocuments() {
     final docs = box.values.toList()
@@ -31,7 +35,6 @@ class DocumentRepository {
     required int pageCount,
     required String name,
   }) {
-  
     final doc = DocumentItem(
       id: const Uuid().v4(),
       name: name,
