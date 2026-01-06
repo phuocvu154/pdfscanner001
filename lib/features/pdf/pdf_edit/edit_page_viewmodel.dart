@@ -22,16 +22,22 @@ class EditPageViewModel extends ChangeNotifier {
   }
 
   // ✅ ADD TEXT Ở GIỮA ẢNH
-  void addText(String text, Offset offset) {
+  void addText(
+    String text,
+    Offset relativePosition,
+    double fontScale, {
+    Color color = Colors.black,
+    String fontFamily = 'Roboto',
+  }) {
     _pushUndo();
 
     _texts.add(
       TextOverlay(
         text: text,
-        relativePosition: const Offset(0.5, 0.5),
-        fontScale: 0.04, // ~ 4% width ảnh
-        color: Colors.white,
-        fontFamily: 'Roboto',
+        relativePosition: relativePosition,
+        fontScale: fontScale,
+        color: color,
+        fontFamily: fontFamily,
       ),
     );
 

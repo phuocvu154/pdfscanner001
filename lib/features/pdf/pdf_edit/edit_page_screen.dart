@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'edit_models.dart';
 import 'edit_page_viewmodel.dart';
+import 'text_style_editor.dart';
 
 class EditPageScreen extends StatelessWidget {
   final String imagePath;
@@ -112,8 +113,22 @@ class _EditView extends StatelessWidget {
                                   ),
                                 );
                               },
-                              onDoubleTap: () =>
-                                  _showEditTextDialog(context, vm, i),
+                              // onDoubleTap: () =>
+                              //     _showEditTextDialog(context, vm, i),
+                              onDoubleTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (_) => TextStyleEditor(
+                                    initial: vm.texts[i],
+                                    onDone: (updated) {
+                                      vm.updateText(i, updated);
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                );
+                              },
+
                               child: Text(
                                 t.text,
                                 style: TextStyle(
@@ -213,36 +228,60 @@ Future<ImageInfo> _getImageInfo(Image image) {
 }
 
 void _showAddTextDialog(BuildContext context, EditPageViewModel vm) {
-  final controller = TextEditingController();
-
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('Add text'),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: const InputDecoration(hintText: 'Enter text'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (controller.text.trim().isEmpty) return;
-
-            // ✅ CHUẨN: vị trí tương đối giữa ảnh
-            vm.addText(controller.text.trim(), const Offset(0.5, 0.5));
-
-            Navigator.pop(context);
-          },
-          child: const Text('Add'),
-        ),
-      ],
+  showModalBottomSheet(
+  context: context,
+  isScrollControlled: true,
+  builder: (_) => TextStyleEditor(
+    initial: TextOverlay(
+      text: '',
+      relativePosition: const Offset(0.5, 0.5),
+      fontScale: 0.04,
+      color: Colors.black,
+      fontFamily: 'Roboto',
     ),
-  );
+    onDone: (newText) {
+      vm.addText(
+        newText.text,
+        newText.relativePosition,
+        newText.fontScale,
+        color: newText.color,
+        fontFamily: newText.fontFamily,
+      );
+      Navigator.pop(context);
+    },
+  ),
+);
+
+  // final controller = TextEditingController();
+
+  // showDialog(
+  //   context: context,
+  //   builder: (_) => AlertDialog(
+  //     title: const Text('Add text'),
+  //     content: TextField(
+  //       controller: controller,
+  //       autofocus: true,
+  //       decoration: const InputDecoration(hintText: 'Enter text'),
+  //     ),
+  //     actions: [
+  //       TextButton(
+  //         onPressed: () => Navigator.pop(context),
+  //         child: const Text('Cancel'),
+  //       ),
+  //       ElevatedButton(
+  //         onPressed: () {
+  //           if (controller.text.trim().isEmpty) return;
+
+  //           // ✅ CHUẨN: vị trí tương đối giữa ảnh
+  //           vm.addText(controller.text.trim(), const Offset(0.5, 0.5));
+
+  //           Navigator.pop(context);
+  //         },
+  //         child: const Text('Add'),
+  //       ),
+  //     ],
+  //   ),
+  // );
 }
 
 // ================= EDIT TEXT =================
