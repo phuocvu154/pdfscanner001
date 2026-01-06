@@ -268,20 +268,9 @@ class DocumentComposeViewModel extends ChangeNotifier {
       for (int pageIndex = 0; pageIndex < _imageUris.length; pageIndex++) {
         final bytes = await File(_imageUris[pageIndex]).readAsBytes();
 
-        final codec = await ui.instantiateImageCodec(
-          bytes,
-          targetWidth: 1654,
-          targetHeight: 2339,
-        );
-
+        final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
         final uiImage = frame.image;
-
-        final recorder = ui.PictureRecorder();
-        final canvas = Canvas(
-          recorder,
-          Rect.fromLTWH(0, 0, pageFormat.width, pageFormat.height),
-        );
 
         final imgW = uiImage.width.toDouble();
         final imgH = uiImage.height.toDouble();
@@ -297,6 +286,13 @@ class DocumentComposeViewModel extends ChangeNotifier {
         final offsetX = (pageFormat.width - renderW) / 2;
         final offsetY = (pageFormat.height - renderH) / 2;
 
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(
+          recorder,
+          Rect.fromLTWH(0, 0, pageFormat.width, pageFormat.height),
+        );
+
+        // ===== DRAW IMAGE =====
         canvas.drawImageRect(
           uiImage,
           Rect.fromLTWH(0, 0, imgW, imgH),
@@ -304,24 +300,28 @@ class DocumentComposeViewModel extends ChangeNotifier {
           Paint(),
         );
 
+        // ===== DRAW TEXT =====
         final texts = _pageTextOverlays[pageIndex] ?? [];
 
         for (final t in texts) {
-          final x = offsetX + t.relativePosition.dx * renderW;
-          final y = offsetY + t.relativePosition.dy * renderH;
+          final fontSize = t.fontScale * renderW;
 
-          final painter = TextPainter(
+          final dx = offsetX + t.relativePosition.dx * renderW;
+          final dy = offsetY + t.relativePosition.dy * renderH;
+
+          final textPainter = TextPainter(
             text: TextSpan(
               text: t.text,
               style: TextStyle(
-                fontSize: t.fontSize, // ✅ KHÔNG SCALE
+                fontSize: fontSize,
                 color: t.color,
+                fontFamily: t.fontFamily,
               ),
             ),
             textDirection: TextDirection.ltr,
-          )..layout();
+          )..layout(maxWidth: renderW);
 
-          painter.paint(canvas, Offset(x, y));
+          textPainter.paint(canvas, Offset(dx, dy));
         }
 
         final picture = recorder.endRecording();

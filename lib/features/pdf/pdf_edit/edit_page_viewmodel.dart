@@ -14,45 +14,44 @@ class EditPageViewModel extends ChangeNotifier {
     required List<TextOverlay> initialTexts,
   }) : _texts = List.of(initialTexts);
 
-  // ✅ PUBLIC READ-ONLY
   List<TextOverlay> get texts => List.unmodifiable(_texts);
 
-  // ===== ADD =====
- // edit_page_viewmodel.dart
+  void _pushUndo() {
+    _undoStack.add(List.of(_texts));
+    _redoStack.clear();
+  }
 
-void addText(String text, Offset relativePosition) {
-  _pushUndo();
+  // ✅ ADD TEXT Ở GIỮA ẢNH
+  void addText(String text, Offset offset) {
+    _pushUndo();
 
-  _texts.add(
-    TextOverlay(
-      text: text,
-      relativePosition: relativePosition, // 0..1
-      fontSize: 18,
-      color: Colors.black,
-    ),
-  );
+    _texts.add(
+      TextOverlay(
+        text: text,
+        relativePosition: const Offset(0.5, 0.5),
+        fontScale: 0.04, // ~ 4% width ảnh
+        color: Colors.white,
+        fontFamily: 'Roboto',
+      ),
+    );
 
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
-
-
-  // ===== MOVE =====
   void moveTextRelative(int index, Offset delta) {
-  _pushUndo();
+    _pushUndo();
 
-  final t = _texts[index];
-  final newPos = Offset(
-    (t.relativePosition.dx + delta.dx).clamp(0.0, 1.0),
-    (t.relativePosition.dy + delta.dy).clamp(0.0, 1.0),
-  );
+    final t = _texts[index];
+    _texts[index] = t.copyWith(
+      relativePosition: Offset(
+        (t.relativePosition.dx + delta.dx).clamp(0.0, 1.0),
+        (t.relativePosition.dy + delta.dy).clamp(0.0, 1.0),
+      ),
+    );
 
-  _texts[index] = t.copyWith(relativePosition: newPos);
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
-
-  // ===== UPDATE =====
   void updateText(int index, TextOverlay updated) {
     _pushUndo();
     _texts[index] = updated;
@@ -63,12 +62,6 @@ void addText(String text, Offset relativePosition) {
     _pushUndo();
     _texts.removeAt(index);
     notifyListeners();
-  }
-
-  // ===== UNDO / REDO =====
-  void _pushUndo() {
-    _undoStack.add(List.of(_texts));
-    _redoStack.clear();
   }
 
   void undo() {

@@ -2,34 +2,37 @@ import 'package:flutter/material.dart';
 
 class TextOverlay {
   final String text;
+
+  /// 0.0 → 1.0 theo ảnh gốc
   final Offset relativePosition;
-  final double fontSize;
+
+  /// scale theo chiều rộng ảnh (vd: 0.04 = 4%)
+  final double fontScale;
+
   final Color color;
+  final String fontFamily;
 
-  // 🔴 THÊM FIELD NÀY
-  
-
-  TextOverlay({
+  const TextOverlay({
     required this.text,
     required this.relativePosition,
-    required this.fontSize,
+    required this.fontScale,
     required this.color,
-    
+    required this.fontFamily,
   });
 
   TextOverlay copyWith({
     String? text,
     Offset? relativePosition,
-    double? fontSize,
-    Color? color,
     double? fontScale,
+    Color? color,
+    String? fontFamily,
   }) {
     return TextOverlay(
       text: text ?? this.text,
       relativePosition: relativePosition ?? this.relativePosition,
-      fontSize: fontSize ?? this.fontSize,
+      fontScale: fontScale ?? this.fontScale,
       color: color ?? this.color,
-      
+      fontFamily: fontFamily ?? this.fontFamily,
     );
   }
 }

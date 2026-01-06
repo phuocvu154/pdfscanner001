@@ -119,25 +119,43 @@ class _ScanResultViewState extends State<_ScanResultView> {
                             ...vm.overlaysOfPage(index).asMap().entries.map((
                               entry,
                             ) {
-                              final t = entry.value;
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final width = renderSize.width;
+                                  final height = renderSize.height;
 
-                              return Positioned(
-                                left:
-                                    offsetX +
-                                    t.relativePosition.dx * renderSize.width,
-                                top:
-                                    offsetY +
-                                    t.relativePosition.dy * renderSize.height,
-                                child: Text(
-                                  t.text,
-                                  style: TextStyle(
-                                    fontSize: t.fontSize,
-                                    color: t.color,
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.6,
-                                    ),
-                                  ),
-                                ),
+                                  return Stack(
+                                    children: vm
+                                        .overlaysOfPage(index)
+                                        .asMap()
+                                        .entries
+                                        .map((entry) {
+                                          final t = entry.value;
+
+                                          final left =
+                                              offsetX +
+                                              t.relativePosition.dx * width;
+                                          final top =
+                                              offsetY +
+                                              t.relativePosition.dy * height;
+
+                                          return Positioned(
+                                            left: left,
+                                            top: top,
+                                            child: Text(
+                                              t.text,
+                                              style: TextStyle(
+                                                fontSize: t.fontScale * width,
+                                                color: t.color,
+                                                backgroundColor: Colors.white
+                                                    .withOpacity(0.6),
+                                              ),
+                                            ),
+                                          );
+                                        })
+                                        .toList(),
+                                  );
+                                },
                               );
                             }),
                           ],

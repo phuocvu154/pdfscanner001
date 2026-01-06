@@ -90,30 +90,38 @@ class _EditView extends StatelessWidget {
                           final i = entry.key;
                           final t = entry.value;
 
-                          return Positioned(
-                            left:
-                                offsetX +
-                                t.relativePosition.dx * renderSize.width,
-                            top:
-                                offsetY +
-                                t.relativePosition.dy * renderSize.height,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.translucent,
-                              onPanUpdate: (details) {
-                                final dx = details.delta.dx / renderSize.width;
-                                final dy = details.delta.dy / renderSize.height;
+                          final left =
+                              offsetX +
+                              t.relativePosition.dx * renderSize.width;
+                          final top =
+                              offsetY +
+                              t.relativePosition.dy * renderSize.height;
 
-                                vm.moveTextRelative(i, Offset(dx, dy));
+                          final fontSize = t.fontScale * renderSize.width;
+
+                          return Positioned(
+                            left: left,
+                            top: top,
+                            child: GestureDetector(
+                              onPanUpdate: (d) {
+                                vm.moveTextRelative(
+                                  i,
+                                  Offset(
+                                    d.delta.dx / renderSize.width,
+                                    d.delta.dy / renderSize.height,
+                                  ),
+                                );
                               },
                               onDoubleTap: () =>
                                   _showEditTextDialog(context, vm, i),
                               child: Text(
                                 t.text,
                                 style: TextStyle(
-                                  fontSize: t.fontSize,
+                                  fontSize: fontSize,
                                   color: t.color,
-                                  backgroundColor: Colors.white.withOpacity(
-                                    0.6,
+                                  fontFamily: t.fontFamily,
+                                  backgroundColor: Colors.black.withOpacity(
+                                    0.4,
                                   ),
                                 ),
                               ),
