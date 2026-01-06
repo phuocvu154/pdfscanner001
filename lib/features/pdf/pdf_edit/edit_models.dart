@@ -1,16 +1,13 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class TextOverlay {
   final String text;
-
-  /// 0.0 → 1.0 theo ảnh gốc
-  final Offset relativePosition;
-
-  /// scale theo chiều rộng ảnh (vd: 0.04 = 4%)
-  final double fontScale;
-
+  final Offset relativePosition; // 0..1
+  final double fontScale; // ✅ GIỮ NGUYÊN
   final Color color;
   final String fontFamily;
+  final double rotation;
+  final bool selected;
 
   const TextOverlay({
     required this.text,
@@ -18,6 +15,8 @@ class TextOverlay {
     required this.fontScale,
     required this.color,
     required this.fontFamily,
+    this.rotation = 0,
+    this.selected = false,
   });
 
   TextOverlay copyWith({
@@ -26,6 +25,8 @@ class TextOverlay {
     double? fontScale,
     Color? color,
     String? fontFamily,
+    double? rotation,
+    bool? selected,
   }) {
     return TextOverlay(
       text: text ?? this.text,
@@ -33,6 +34,8 @@ class TextOverlay {
       fontScale: fontScale ?? this.fontScale,
       color: color ?? this.color,
       fontFamily: fontFamily ?? this.fontFamily,
+      rotation: rotation ?? this.rotation,
+      selected: selected ?? this.selected,
     );
   }
 }

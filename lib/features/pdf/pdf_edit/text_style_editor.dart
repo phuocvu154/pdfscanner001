@@ -4,11 +4,13 @@ import 'edit_models.dart';
 class TextStyleEditor extends StatefulWidget {
   final TextOverlay initial;
   final ValueChanged<TextOverlay> onDone;
+  final VoidCallback? onDelete; // ✅ THÊM DÒNG NÀY
 
   const TextStyleEditor({
     super.key,
     required this.initial,
     required this.onDone,
+    this.onDelete, // ✅ THÊM DÒNG NÀY
   });
 
   @override
@@ -183,6 +185,27 @@ class _TextStyleEditorState extends State<TextStyleEditor> {
             ),
 
             const SizedBox(height: 16),
+            Row(
+              children: [
+                if (widget.onDelete != null)
+                  TextButton(
+                    onPressed: widget.onDelete,
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Delete'),
+                  ),
+
+                const Spacer(),
+
+                ElevatedButton(
+                  onPressed: () {
+                    widget.onDone;
+
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

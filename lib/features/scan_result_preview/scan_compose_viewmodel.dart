@@ -306,8 +306,12 @@ class DocumentComposeViewModel extends ChangeNotifier {
         for (final t in texts) {
           final fontSize = t.fontScale * renderW;
 
-          final dx = offsetX + t.relativePosition.dx * renderW;
-          final dy = offsetY + t.relativePosition.dy * renderH;
+          canvas.save();
+          canvas.translate(
+            offsetX + t.relativePosition.dx * renderW,
+            offsetY + t.relativePosition.dy * renderH,
+          );
+          canvas.rotate(t.rotation);
 
           final textPainter = TextPainter(
             text: TextSpan(
@@ -319,9 +323,10 @@ class DocumentComposeViewModel extends ChangeNotifier {
               ),
             ),
             textDirection: TextDirection.ltr,
-          )..layout(maxWidth: renderW);
+          )..layout();
 
-          textPainter.paint(canvas, Offset(dx, dy));
+          textPainter.paint(canvas, Offset.zero);
+          canvas.restore();
         }
 
         final picture = recorder.endRecording();

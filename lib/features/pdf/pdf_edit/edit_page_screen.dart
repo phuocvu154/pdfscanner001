@@ -91,54 +91,51 @@ class _EditView extends StatelessWidget {
                           final i = entry.key;
                           final t = entry.value;
 
-                          final left =
-                              offsetX +
-                              t.relativePosition.dx * renderSize.width;
-                          final top =
-                              offsetY +
-                              t.relativePosition.dy * renderSize.height;
-
-                          final fontSize = t.fontScale * renderSize.width;
-
                           return Positioned(
-                            left: left,
-                            top: top,
+                            left:
+                                offsetX +
+                                t.relativePosition.dx * renderSize.width,
+                            top:
+                                offsetY +
+                                t.relativePosition.dy * renderSize.height,
                             child: GestureDetector(
-                              onPanUpdate: (d) {
-                                vm.moveTextRelative(
-                                  i,
-                                  Offset(
-                                    d.delta.dx / renderSize.width,
-                                    d.delta.dy / renderSize.height,
-                                  ),
-                                );
-                              },
-                              // onDoubleTap: () =>
-                              //     _showEditTextDialog(context, vm, i),
-                              onDoubleTap: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  builder: (_) => TextStyleEditor(
-                                    initial: vm.texts[i],
-                                    onDone: (updated) {
-                                      vm.updateText(i, updated);
-                                      Navigator.pop(context);
-                                    },
-                                  ),
-                                );
-                              },
+                              onScaleStart: vm.onScaleStart(i),
+                              onScaleUpdate: (details) {
+                                // 🔥 MOVE (1 ngón)
+                                if (details.pointerCount == 1) {
+                                  vm.moveText(
+                                    i,
+                                    details.focalPointDelta,
+                                    renderSize,
+                                  );
+                                }
 
-                              child: Text(
-                                t.text,
-                                style: TextStyle(
-                                  fontSize: fontSize,
-                                  color: t.color,
-                                  fontFamily: t.fontFamily,
-                                  backgroundColor: Colors.black.withOpacity(
-                                    0.4,
-                                  ),
-                                ),
+                                // 🔥 SCALE + ROTATE (2 ngón)
+                                if (details.pointerCount >= 2) {
+                                  vm.onScaleUpdate(i)(details);
+                                }
+                              },
+                              onDoubleTap: () =>
+                                  _showEditTextBottomSheet(context, vm, i),
+                              child: Builder(
+                                builder: (_) {
+                                  final fontSizePx =
+                                      t.fontScale * renderSize.width;
+
+                                  return Transform.rotate(
+                                    angle: t.rotation,
+                                    child: Text(
+                                      t.text,
+                                      style: TextStyle(
+                                        fontSize: fontSizePx,
+                                        color: t.color,
+                                        fontFamily: t.fontFamily,
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.6),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           );
@@ -229,28 +226,28 @@ Future<ImageInfo> _getImageInfo(Image image) {
 
 void _showAddTextDialog(BuildContext context, EditPageViewModel vm) {
   showModalBottomSheet(
-  context: context,
-  isScrollControlled: true,
-  builder: (_) => TextStyleEditor(
-    initial: TextOverlay(
-      text: '',
-      relativePosition: const Offset(0.5, 0.5),
-      fontScale: 0.04,
-      color: Colors.black,
-      fontFamily: 'Roboto',
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => TextStyleEditor(
+      initial: TextOverlay(
+        text: '',
+        relativePosition: const Offset(0.5, 0.5),
+        fontScale: 0.04,
+        color: Colors.black,
+        fontFamily: 'Roboto',
+      ),
+      onDone: (newText) {
+        vm.addText(
+          newText.text,
+          newText.relativePosition,
+          newText.fontScale,
+          color: newText.color,
+          fontFamily: newText.fontFamily,
+        );
+        Navigator.pop(context);
+      },
     ),
-    onDone: (newText) {
-      vm.addText(
-        newText.text,
-        newText.relativePosition,
-        newText.fontScale,
-        color: newText.color,
-        fontFamily: newText.fontFamily,
-      );
-      Navigator.pop(context);
-    },
-  ),
-);
+  );
 
   // final controller = TextEditingController();
 
@@ -285,36 +282,66 @@ void _showAddTextDialog(BuildContext context, EditPageViewModel vm) {
 }
 
 // ================= EDIT TEXT =================
-
-void _showEditTextDialog(
+void _showEditTextBottomSheet(
   BuildContext context,
   EditPageViewModel vm,
   int index,
 ) {
-  final text = vm.texts[index];
-  final controller = TextEditingController(text: text.text);
+  final oldText = vm.texts[index];
 
-  showDialog(
+  showModalBottomSheet(
     context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('Edit text'),
-      content: TextField(controller: controller),
-      actions: [
-        TextButton(
-          onPressed: () {
-            vm.deleteText(index);
-            Navigator.pop(context);
-          },
-          child: const Text('Delete'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            vm.updateText(index, text.copyWith(text: controller.text));
-            Navigator.pop(context);
-          },
-          child: const Text('Save'),
-        ),
-      ],
+    isScrollControlled: true,
+    builder: (_) => TextStyleEditor(
+      initial: oldText,
+      onDone: (updated) {
+        vm.updateText(
+          index,
+          text: updated.text,
+          color: updated.color,
+          fontScale: updated.fontScale,
+          fontFamily: updated.fontFamily,
+        );
+        Navigator.pop(context);
+      },
+      onDelete: () {
+        vm.deleteText(index);
+        Navigator.pop(context);
+      },
     ),
   );
 }
+
+
+// void _showEditTextDialog(
+//   BuildContext context,
+//   EditPageViewModel vm,
+//   int index,
+// ) 
+// //   final text = vm.texts[index];
+//   final controller = TextEditingController(text: text.text);
+
+//   showDialog(
+//     context: context,
+//     builder: (_) => AlertDialog(
+//       title: const Text('Edit text'),
+//       content: TextField(controller: controller),
+//       actions: [
+//         TextButton(
+//           onPressed: () {
+//             vm.deleteText(index);
+//             Navigator.pop(context);
+//           },
+//           child: const Text('Delete'),
+//         ),
+//         ElevatedButton(
+//           onPressed: () {
+//             vm.updateText(index, text.copyWith(text: controller.text));
+//             Navigator.pop(context);
+//           },
+//           child: const Text('Save'),
+//         ),
+//       ],
+//     ),
+//   );
+// }
