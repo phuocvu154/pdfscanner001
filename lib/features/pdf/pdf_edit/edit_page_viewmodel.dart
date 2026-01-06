@@ -1,55 +1,80 @@
 import 'package:flutter/material.dart';
-import '../../documents/document_item.dart';
 
-class EditableText {
-  String text;
-  Offset position;
-  double fontSize;
-  Color color;
-
-  EditableText({
-    required this.text,
-    required this.position,
-    this.fontSize = 18,
-    this.color = Colors.black,
-  });
-
-  EditableText copy() => EditableText(
-    text: text,
-    position: position,
-    fontSize: fontSize,
-    color: color,
-  );
-}
+import 'edit_models.dart';
 
 class EditPageViewModel extends ChangeNotifier {
-  final DocumentItem document;
+  final String imagePath;
 
-  EditPageViewModel(this.document);
+  final List<TextOverlay> _texts;
+  final List<List<TextOverlay>> _undoStack = [];
+  final List<List<TextOverlay>> _redoStack = [];
 
-  final List<EditableText> texts = [];
+  EditPageViewModel({
+    required this.imagePath,
+    required List<TextOverlay> initialTexts,
+  }) : _texts = List.of(initialTexts);
 
-  final List<List<EditableText>> _undoStack = [];
-  final List<List<EditableText>> _redoStack = [];
+  // ✅ PUBLIC READ-ONLY
+  List<TextOverlay> get texts => List.unmodifiable(_texts);
 
-  int currentPage = 0;
+  // ===== ADD =====
+ // edit_page_viewmodel.dart
 
-  // ===== PAGE =====
-  void changePage(int index) {
-    currentPage = index;
+void addText(String text, Offset relativePosition) {
+  _pushUndo();
+
+  _texts.add(
+    TextOverlay(
+      text: text,
+      relativePosition: relativePosition, // 0..1
+      fontSize: 18,
+      color: Colors.black,
+    ),
+  );
+
+  notifyListeners();
+}
+
+
+
+  // ===== MOVE =====
+  void moveTextRelative(int index, Offset delta) {
+  _pushUndo();
+
+  final t = _texts[index];
+  final newPos = Offset(
+    (t.relativePosition.dx + delta.dx).clamp(0.0, 1.0),
+    (t.relativePosition.dy + delta.dy).clamp(0.0, 1.0),
+  );
+
+  _texts[index] = t.copyWith(relativePosition: newPos);
+  notifyListeners();
+}
+
+
+  // ===== UPDATE =====
+  void updateText(int index, TextOverlay updated) {
+    _pushUndo();
+    _texts[index] = updated;
+    notifyListeners();
+  }
+
+  void deleteText(int index) {
+    _pushUndo();
+    _texts.removeAt(index);
     notifyListeners();
   }
 
   // ===== UNDO / REDO =====
-  void _saveState() {
-    _undoStack.add(texts.map((e) => e.copy()).toList());
+  void _pushUndo() {
+    _undoStack.add(List.of(_texts));
     _redoStack.clear();
   }
 
   void undo() {
     if (_undoStack.isEmpty) return;
-    _redoStack.add(texts.map((e) => e.copy()).toList());
-    texts
+    _redoStack.add(List.of(_texts));
+    _texts
       ..clear()
       ..addAll(_undoStack.removeLast());
     notifyListeners();
@@ -57,39 +82,10 @@ class EditPageViewModel extends ChangeNotifier {
 
   void redo() {
     if (_redoStack.isEmpty) return;
-    _undoStack.add(texts.map((e) => e.copy()).toList());
-    texts
+    _undoStack.add(List.of(_texts));
+    _texts
       ..clear()
       ..addAll(_redoStack.removeLast());
-    notifyListeners();
-  }
-
-  // ===== TEXT =====
-  void addText(String value, Size canvasSize) {
-    _saveState();
-    texts.add(
-      EditableText(
-        text: value,
-        position: Offset(canvasSize.width / 2 - 40, canvasSize.height / 2 - 20),
-      ),
-    );
-    notifyListeners();
-  }
-
-  void updateText(int index, EditableText updated) {
-    _saveState();
-    texts[index] = updated;
-    notifyListeners();
-  }
-
-  void moveText(int index, Offset delta) {
-    texts[index].position += delta;
-    notifyListeners();
-  }
-
-  void deleteText(int index) {
-    _saveState();
-    texts.removeAt(index);
     notifyListeners();
   }
 }

@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../documents/document_repository.dart';
+import '../pdf/pdf_edit/edit_models.dart';
 import '../pdf/pdf_edit/edit_page_screen.dart';
-import 'scan_viewmodel.dart';
+import 'scan_compose_viewmodel.dart';
 import 'action_item.dart';
 
 class ScanResultScreen extends StatelessWidget {
@@ -60,7 +62,7 @@ class _ScanResultViewState extends State<_ScanResultView> {
         actions: [
           TextButton(
             onPressed: () async {
-              final doc = await vm.save();
+              final doc = await vm.saveWithEdits();
               Navigator.pop(context, doc); // 🔥 TRẢ DOC NGƯỢC
             },
             child: const Text('Done'),
@@ -76,12 +78,73 @@ class _ScanResultViewState extends State<_ScanResultView> {
               itemCount: vm.total,
               onPageChanged: vm.onPageChanged,
               itemBuilder: (_, index) {
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Image.file(
-                    File(vm.imageUris[index]),
-                    fit: BoxFit.contain,
-                  ),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final imageFile = File(vm.imageUris[index]);
+
+                    return FutureBuilder<ImageInfo>(
+                      future: _getImageInfo(Image.file(imageFile)),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const SizedBox();
+
+                        final imageSize = Size(
+                          snapshot.data!.image.width.toDouble(),
+                          snapshot.data!.image.height.toDouble(),
+                        );
+
+                        final fitted = applyBoxFit(
+                          BoxFit.contain,
+                          imageSize,
+                          constraints.biggest,
+                        );
+
+                        final renderSize = fitted.destination;
+                        final offsetX =
+                            (constraints.maxWidth - renderSize.width) / 2;
+                        final offsetY =
+                            (constraints.maxHeight - renderSize.height) / 2;
+
+                        return Stack(
+                          children: [
+                            // ===== IMAGE =====
+                            Positioned(
+                              left: offsetX,
+                              top: offsetY,
+                              width: renderSize.width,
+                              height: renderSize.height,
+                              child: Image.file(imageFile, fit: BoxFit.contain),
+                            ),
+
+                            // ===== TEXT OVERLAYS =====
+                            ...vm.overlaysOfPage(index).asMap().entries.map((
+                              entry,
+                            ) {
+                              final t = entry.value;
+
+                              return Positioned(
+                                left:
+                                    offsetX +
+                                    t.relativePosition.dx * renderSize.width,
+                                top:
+                                    offsetY +
+                                    t.relativePosition.dy * renderSize.height,
+                                child: Text(
+                                  t.text,
+                                  style: TextStyle(
+                                    fontSize: t.fontSize,
+                                    color: t.color,
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.6,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 );
               },
             ),
@@ -125,18 +188,25 @@ class _ScanResultViewState extends State<_ScanResultView> {
                   label: 'Edit',
                   onTap: () async {
                     final vm = context.read<DocumentComposeViewModel>();
-                    final doc = await vm.save();
+                    final pageIndex = vm.currentIndex;
 
-                    Navigator.push(
+                    final overlays = await Navigator.push<List<TextOverlay>>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => EditPageScreen(
-                          document: doc, // 🔴 LẤY Ở ĐÂY
+                          imagePath: vm.imageUris[pageIndex],
+                          pageIndex: pageIndex,
+                          initialTexts: vm.overlaysOfPage(pageIndex),
                         ),
                       ),
                     );
+
+                    if (overlays != null) {
+                      vm.setPageTextOverlays(pageIndex, overlays);
+                    }
                   },
                 ),
+
                 ActionItem(
                   icon: Icons.more_vert,
                   label: 'Other',
@@ -194,5 +264,17 @@ class _ScanResultViewState extends State<_ScanResultView> {
         ],
       ),
     );
+  }
+
+  Future<ImageInfo> _getImageInfo(Image image) {
+    final completer = Completer<ImageInfo>();
+    image.image
+        .resolve(const ImageConfiguration())
+        .addListener(
+          ImageStreamListener((info, _) {
+            completer.complete(info);
+          }),
+        );
+    return completer.future;
   }
 }
