@@ -34,6 +34,7 @@ class _ScanResultView extends StatefulWidget {
   @override
   State<_ScanResultView> createState() => _ScanResultViewState();
 }
+// ... imports như cũ ...
 
 class _ScanResultViewState extends State<_ScanResultView> {
   late final PageController _pageController;
@@ -65,7 +66,7 @@ class _ScanResultViewState extends State<_ScanResultView> {
           TextButton(
             onPressed: () async {
               final doc = await vm.saveWithEdits();
-              Navigator.pop(context, doc); // 🔥 TRẢ DOC NGƯỢC
+              Navigator.pop(context, doc);
             },
             child: const Text('Done'),
           ),
@@ -80,99 +81,7 @@ class _ScanResultViewState extends State<_ScanResultView> {
               itemCount: vm.total,
               onPageChanged: vm.onPageChanged,
               itemBuilder: (_, index) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final imageFile = File(vm.imageUris[index]);
-
-                    return FutureBuilder<ImageInfo>(
-                      future: _getImageInfo(Image.file(imageFile)),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) return const SizedBox();
-
-                        final imageSize = Size(
-                          snapshot.data!.image.width.toDouble(),
-                          snapshot.data!.image.height.toDouble(),
-                        );
-
-                        final fitted = applyBoxFit(
-                          BoxFit.contain,
-                          imageSize,
-                          constraints.biggest,
-                        );
-
-                        final renderSize = fitted.destination;
-                        final offsetX =
-                            (constraints.maxWidth - renderSize.width) / 2;
-                        final offsetY =
-                            (constraints.maxHeight - renderSize.height) / 2;
-
-                        return Stack(
-                          children: [
-                            // ===== IMAGE BASE =====
-                            Positioned(
-                              left: offsetX,
-                              top: offsetY,
-                              width: renderSize.width,
-                              height: renderSize.height,
-                              child: Image.file(imageFile, fit: BoxFit.contain),
-                            ),
-
-                            // ===== IMAGE OVERLAYS (FIXED) =====
-                            ...vm.imageOverlaysOfPage(index).map((img) {
-                              final left =
-                                  offsetX +
-                                  img.relativePosition.dx * renderSize.width;
-                              final top =
-                                  offsetY +
-                                  img.relativePosition.dy * renderSize.height;
-
-                              return Positioned(
-                                left: left,
-                                top: top,
-                                child: Transform.rotate(
-                                  angle: img.rotation,
-                                  child: Transform.scale(
-                                    scale: img.scale,
-                                    child: Image.file(File(img.imagePath)),
-                                  ),
-                                ),
-                              );
-                            }),
-
-                            // ===== TEXT OVERLAYS (FIXED) =====
-                            ...vm.textOverlaysOfPage(index).map((t) {
-                              final left =
-                                  offsetX +
-                                  t.relativePosition.dx * renderSize.width;
-                              final top =
-                                  offsetY +
-                                  t.relativePosition.dy * renderSize.height;
-
-                              return Positioned(
-                                left: left,
-                                top: top,
-                                child: Transform.rotate(
-                                  angle: t.rotation,
-                                  child: Text(
-                                    t.text,
-                                    style: TextStyle(
-                                      fontSize: t.fontScale * renderSize.width,
-                                      color: t.color,
-                                      fontFamily: t.fontFamily,
-                                      backgroundColor: Colors.white.withOpacity(
-                                        0.6,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                );
+                return _buildPagePreview(context, vm, index);
               },
             ),
           ),
@@ -198,7 +107,6 @@ class _ScanResultViewState extends State<_ScanResultView> {
                   color: vm.total > 1 ? Colors.red : Colors.grey,
                   onTap: () {
                     if (vm.total <= 1) return;
-
                     vm.deleteCurrent();
                     _pageController.jumpToPage(
                       vm.currentIndex.clamp(0, vm.total - 1),
@@ -214,35 +122,13 @@ class _ScanResultViewState extends State<_ScanResultView> {
                   icon: Icons.edit,
                   label: 'Edit',
                   onTap: () async {
-                    final vm = context.read<DocumentComposeViewModel>();
-                    final pageIndex = vm.currentIndex;
-
-                    final result = await Navigator.push<EditPageResult>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditPageScreen(
-                          imagePath: vm.imageUris[pageIndex],
-                          pageIndex: pageIndex,
-                          initialTexts: vm.textOverlaysOfPage(pageIndex),
-                          initialImages: vm.imageOverlaysOfPage(pageIndex),
-                        ),
-                      ),
-                    );
-
-                    if (result != null) {
-                      vm.setPageTextOverlays(pageIndex, result.texts);
-                      vm.setPageImageOverlays(
-                        pageIndex,
-                        result.images,
-                      ); // 🔥 FIX
-                    }
+                    await _openEditPage(context);
                   },
                 ),
-
                 ActionItem(
                   icon: Icons.more_vert,
                   label: 'Other',
-                  onTap: () => _showMoreMenu(context, vm),
+                  onTap: () => _showMoreMenu(context),
                 ),
               ],
             ),
@@ -267,14 +153,129 @@ class _ScanResultViewState extends State<_ScanResultView> {
     );
   }
 
-  void _comingSoon(BuildContext context, String feature) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$feature – coming soon')));
+  // ===== BUILD PAGE PREVIEW =====
+  Widget _buildPagePreview(
+    BuildContext context,
+    DocumentComposeViewModel vm,
+    int index,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final imageFile = File(vm.imageUris[index]);
+
+        return FutureBuilder<ImageInfo>(
+          future: _getImageInfo(Image.file(imageFile)),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox();
+
+            final imageSize = Size(
+              snapshot.data!.image.width.toDouble(),
+              snapshot.data!.image.height.toDouble(),
+            );
+
+            final fitted = applyBoxFit(
+              BoxFit.contain,
+              imageSize,
+              constraints.biggest,
+            );
+
+            final renderSize = fitted.destination;
+            final offsetX = (constraints.maxWidth - renderSize.width) / 2;
+            final offsetY = (constraints.maxHeight - renderSize.height) / 2;
+
+            return Stack(
+              children: [
+                // ===== IMAGE BASE =====
+                Positioned(
+                  left: offsetX,
+                  top: offsetY,
+                  width: renderSize.width,
+                  height: renderSize.height,
+                  child: Image.file(imageFile, fit: BoxFit.contain),
+                ),
+
+                // ===== IMAGE OVERLAYS =====
+                ...vm.imageOverlaysOfPage(index).map((img) {
+                  final centerX = offsetX + img.relativePosition.dx * renderSize.width;
+                  final centerY = offsetY + img.relativePosition.dy * renderSize.height;
+                  final sizePx = img.scale * renderSize.width;
+
+                  return Positioned(
+                    left: centerX - sizePx / 2,
+                    top: centerY - sizePx / 2,
+                    child: Transform.rotate(
+                      angle: img.rotation,
+                      child: Image.file(
+                        File(img.imagePath),
+                        width: sizePx,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  );
+                }),
+
+                // ===== TEXT OVERLAYS =====
+                ...vm.textOverlaysOfPage(index).map((t) {
+                  final left = offsetX + t.relativePosition.dx * renderSize.width;
+                  final top = offsetY + t.relativePosition.dy * renderSize.height;
+                  final fontSize = t.fontScale * renderSize.width;
+
+                  return Positioned(
+                    left: left,
+                    top: top,
+                    child: Transform.rotate(
+                      angle: t.rotation,
+                      child: Text(
+                        t.text,
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          color: t.color,
+                          fontFamily: t.fontFamily,
+                          backgroundColor: Colors.white.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
-  void _showMoreMenu(BuildContext context, DocumentComposeViewModel vm) {
+  // ===== OPEN EDIT PAGE =====
+  Future<void> _openEditPage(BuildContext context) async {
+    final vm = context.read<DocumentComposeViewModel>();
+    final pageIndex = vm.currentIndex;
+
+    final result = await Navigator.push<EditPageResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditPageScreen(
+          imagePath: vm.imageUris[pageIndex],
+          pageIndex: pageIndex,
+          initialTexts: vm.textOverlaysOfPage(pageIndex),
+          initialImages: vm.imageOverlaysOfPage(pageIndex),
+        ),
+      ),
+    );
+
+    // 🔥 Cập nhật ngay khi nhận kết quả
+    if (result != null) {
+      print('📝 Received edit result: ${result.texts.length} texts, ${result.images.length} images');
+      
+      vm.setPageTextOverlays(pageIndex, result.texts);
+      vm.setPageImageOverlays(pageIndex, result.images);
+
+      // ✅ Force PageView refresh (optional, nhưng giúp đảm bảo)
+      setState(() {});
+    }
+  }
+
+  void _showMoreMenu(BuildContext context) {
+    final vm = context.read<DocumentComposeViewModel>();
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -295,6 +296,13 @@ class _ScanResultViewState extends State<_ScanResultView> {
           const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+
+  void _comingSoon(BuildContext context, String feature) {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature – coming soon')),
     );
   }
 
