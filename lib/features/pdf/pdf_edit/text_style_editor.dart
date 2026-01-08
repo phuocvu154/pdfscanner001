@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'edit_models.dart';
+import 'text_overlay.dart';
 
 class TextStyleEditor extends StatefulWidget {
   final TextOverlay initial;

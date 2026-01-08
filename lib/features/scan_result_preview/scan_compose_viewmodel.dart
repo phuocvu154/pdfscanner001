@@ -10,7 +10,9 @@ import 'package:uuid/uuid.dart';
 
 import '../documents/document_item.dart';
 import '../documents/document_repository.dart';
-import '../pdf/pdf_edit/edit_models.dart';
+
+import '../pdf/pdf_edit/image_overlay.dart';
+import '../pdf/pdf_edit/text_overlay.dart';
 import 'scan_service.dart';
 import 'package:path/path.dart' as path;
 
@@ -24,8 +26,12 @@ class DocumentComposeViewModel extends ChangeNotifier {
   String _fileName = '';
 
   final Map<int, List<TextOverlay>> _pageTextOverlays = {};
+  final Map<int, List<ImageOverlay>> _pageImageOverlays = {};
 
-  List<TextOverlay> overlaysOfPage(int page) => _pageTextOverlays[page] ?? [];
+  List<TextOverlay> textOverlaysOfPage(int page) =>
+      _pageTextOverlays[page] ?? [];
+  List<ImageOverlay> imageOverlaysOfPage(int page) =>
+      _pageImageOverlays[page] ?? [];
 
   DocumentComposeViewModel(List<String> imageUris, this._repo)
     : _imageUris = List.of(imageUris);
@@ -252,6 +258,12 @@ class DocumentComposeViewModel extends ChangeNotifier {
     _pageTextOverlays[pageIndex] = List.of(overlays);
     notifyListeners();
   }
+  //EDIT Page IMAGE OVERLAYS
+
+  void setPageImageOverlays(int pageIndex, List<ImageOverlay> overlays) {
+    _pageImageOverlays[pageIndex] = List.of(overlays);
+    notifyListeners();
+  }
 
   Future<DocumentItem> saveWithEdits() async {
     _isProcessing = true;
@@ -326,6 +338,39 @@ class DocumentComposeViewModel extends ChangeNotifier {
           )..layout();
 
           textPainter.paint(canvas, Offset.zero);
+          canvas.restore();
+        }
+
+        
+        // ===== DRAW IMAGE OVERLAY =====
+        final images = _pageImageOverlays[pageIndex] ?? [];
+
+        for (final img in images) {
+          final centerX = offsetX + img.relativePosition.dx * renderW;
+          final centerY = offsetY + img.relativePosition.dy * renderH;
+
+          final overlayBytes = await File(img.imagePath).readAsBytes();
+          final overlayCodec = await ui.instantiateImageCodec(overlayBytes);
+          final overlayFrame = await overlayCodec.getNextFrame();
+          final overlayImage = overlayFrame.image;
+
+          final overlayW = overlayImage.width.toDouble();
+          final overlayH = overlayImage.height.toDouble();
+
+          final scalePx = img.scale * renderW;
+
+          canvas.save();
+          canvas.translate(centerX, centerY);
+          canvas.rotate(img.rotation);
+
+          canvas.scale(scalePx / overlayW, scalePx / overlayW);
+
+          canvas.drawImage(
+            overlayImage,
+            Offset(-overlayW / 2, -overlayH / 2),
+            Paint(),
+          );
+
           canvas.restore();
         }
 

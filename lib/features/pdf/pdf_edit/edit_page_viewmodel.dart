@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'edit_models.dart';
+import 'text_overlay.dart';
+import 'image_overlay.dart';
 
 class EditPageViewModel extends ChangeNotifier {
   final String imagePath;
@@ -8,17 +9,88 @@ class EditPageViewModel extends ChangeNotifier {
   final List<List<TextOverlay>> _undoStack = [];
   final List<List<TextOverlay>> _redoStack = [];
 
+  final List<ImageOverlay> _images;
+  List<ImageOverlay> get images => List.unmodifiable(_images);
+  List<TextOverlay> get texts => List.unmodifiable(_texts);
+
   EditPageViewModel({
     required this.imagePath,
     required List<TextOverlay> initialTexts,
-  }) : _texts = List.of(initialTexts);
-
-  List<TextOverlay> get texts => List.unmodifiable(_texts);
+    required List<ImageOverlay> initialImages,
+  }) : _texts = List.of(initialTexts),
+       _images = List.of(initialImages);
 
   // ================= UNDO =================
   void _pushUndo() {
     _undoStack.add(List.of(_texts));
     _redoStack.clear();
+  }
+
+  double _startScale = 1;
+  double _startRotation = 0;
+
+  double _startImageScale = 1.0;
+  double _startImageRotation = 0.0;
+
+  GestureScaleStartCallback onImageScaleStart(int index) {
+    return (details) {
+      _startImageScale = _images[index].scale;
+      _startImageRotation = _images[index].rotation;
+    };
+  }
+
+  GestureScaleUpdateCallback onImageScaleUpdate(int index) {
+    return (details) {
+      final img = _images[index];
+
+      _images[index] = img.copyWith(
+        scale: (_startImageScale * details.scale).clamp(0.05, 3.0),
+        rotation: _startImageRotation + details.rotation,
+      );
+
+      notifyListeners();
+    };
+  }
+
+  void deleteImage(int index) {
+    _pushUndo();
+    _images.removeAt(index);
+    notifyListeners();
+  }
+
+  // ================= ADD IMAGE =================
+  void addImage(String path) {
+    _pushUndo();
+
+    _images.add(
+      ImageOverlay(imagePath: path, relativePosition: const Offset(0.5, 0.5)),
+    );
+
+    notifyListeners();
+  }
+
+  void selectImage(int index) {
+    for (int i = 0; i < _images.length; i++) {
+      _images[i] = _images[i].copyWith(selected: i == index);
+    }
+    notifyListeners();
+  }
+
+  void moveImage(int index, Offset delta, Size renderSize) {
+    _pushUndo();
+
+    final img = _images[index];
+
+    final dx = delta.dx / renderSize.width;
+    final dy = delta.dy / renderSize.height;
+
+    final newPos = Offset(
+      (img.relativePosition.dx + dx).clamp(0.0, 1.0),
+      (img.relativePosition.dy + dy).clamp(0.0, 1.0),
+    );
+
+    _images[index] = img.copyWith(relativePosition: newPos);
+    notifyListeners();
   }
 
   // ================= ADD =================
@@ -63,13 +135,13 @@ class EditPageViewModel extends ChangeNotifier {
 
   // ================= SCALE + ROTATE =================
   double _startFontScale = 1;
-  double _startRotation = 0;
+  double _startFontRotation = 0;
 
   GestureScaleStartCallback onScaleStart(int index) {
     return (_) {
       _pushUndo();
       _startFontScale = _texts[index].fontScale;
-      _startRotation = _texts[index].rotation;
+      _startFontRotation = _texts[index].rotation;
     };
   }
 
@@ -79,7 +151,7 @@ class EditPageViewModel extends ChangeNotifier {
 
       _texts[index] = t.copyWith(
         fontScale: (_startFontScale * details.scale).clamp(0.01, 0.3),
-        rotation: _startRotation + details.rotation,
+        rotation: _startFontRotation + details.rotation,
       );
 
       notifyListeners();

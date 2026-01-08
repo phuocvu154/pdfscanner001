@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'edit_models.dart';
+import 'text_overlay.dart';
 
 class EditableTextBox extends StatelessWidget {
   final TextOverlay text;

@@ -2,28 +2,35 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import 'edit_models.dart';
 import 'edit_page_viewmodel.dart';
+import 'edit_result.dart';
+import 'image_overlay.dart';
+import 'text_overlay.dart';
 import 'text_style_editor.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditPageScreen extends StatelessWidget {
   final String imagePath;
   final int pageIndex;
   final List<TextOverlay> initialTexts;
+  final List<ImageOverlay> initialImages;
 
   const EditPageScreen({
     super.key,
     required this.imagePath,
     required this.pageIndex,
     required this.initialTexts,
+    required this.initialImages,
   });
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) =>
-          EditPageViewModel(imagePath: imagePath, initialTexts: initialTexts),
+      create: (_) => EditPageViewModel(
+        imagePath: imagePath,
+        initialTexts: initialTexts,
+        initialImages: initialImages,
+      ),
       child: _EditView(pageIndex: pageIndex),
     );
   }
@@ -85,6 +92,50 @@ class _EditView extends StatelessWidget {
                           height: renderSize.height,
                           child: Image.file(imageFile, fit: BoxFit.contain),
                         ),
+                        
+                        // ===== IMAGE OVERLAY LAYER =====
+                        ...vm.images.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final img = entry.value;
+
+                          final centerX =
+                              offsetX +
+                              img.relativePosition.dx * renderSize.width;
+                          final centerY =
+                              offsetY +
+                              img.relativePosition.dy * renderSize.height;
+
+                          final sizePx = img.scale * renderSize.width;
+
+                          return Positioned(
+                            left: centerX - sizePx / 2,
+                            top: centerY - sizePx / 2,
+                            child: GestureDetector(
+                              onScaleStart: vm.onImageScaleStart(i),
+                              onScaleUpdate: (details) {
+                                if (details.pointerCount == 1 &&
+                                    details.scale == 1.0) {
+                                  vm.moveImage(
+                                    i,
+                                    details.focalPointDelta,
+                                    renderSize,
+                                  );
+                                } else if (details.pointerCount >= 2) {
+                                  vm.onImageScaleUpdate(i)(details);
+                                }
+                              },
+                              onLongPress: () => vm.selectImage(i),
+                              child: Transform.rotate(
+                                angle: img.rotation,
+                                child: Image.file(
+                                  File(img.imagePath),
+                                  width: sizePx,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
 
                         // ===== TEXT LAYER =====
                         ...vm.texts.asMap().entries.map((entry) {
@@ -101,20 +152,18 @@ class _EditView extends StatelessWidget {
                             child: GestureDetector(
                               onScaleStart: vm.onScaleStart(i),
                               onScaleUpdate: (details) {
-                                // 🔥 MOVE (1 ngón)
-                                if (details.pointerCount == 1) {
+                                if (details.pointerCount == 1 &&
+                                    details.scale == 1.0) {
                                   vm.moveText(
                                     i,
                                     details.focalPointDelta,
                                     renderSize,
                                   );
-                                }
-
-                                // 🔥 SCALE + ROTATE (2 ngón)
-                                if (details.pointerCount >= 2) {
+                                } else if (details.pointerCount >= 2) {
                                   vm.onScaleUpdate(i)(details);
                                 }
                               },
+
                               onDoubleTap: () =>
                                   _showEditTextBottomSheet(context, vm, i),
                               child: Builder(
@@ -153,7 +202,13 @@ class _EditView extends StatelessWidget {
                       padding: const EdgeInsets.all(12),
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context, vm.texts);
+                          Navigator.pop(
+                            context,
+                            EditPageResult(
+                              texts: vm.texts,
+                              images: vm.images, // 🔥 QUAN TRỌNG
+                            ),
+                          );
                         },
                         child: const Text('Done'),
                       ),
@@ -189,7 +244,9 @@ class _EditToolbar extends StatelessWidget {
           _tool(Icons.text_fields, 'Add Text', () {
             _showAddTextDialog(context, vm);
           }),
-          _tool(Icons.image, 'Image', () {}),
+          _tool(Icons.image, 'Add Image', () {
+            _showAddImageSheet(context, vm);
+          }),
           _tool(Icons.edit, 'Signature', () {}),
         ],
       ),
@@ -312,12 +369,11 @@ void _showEditTextBottomSheet(
   );
 }
 
-
 // void _showEditTextDialog(
 //   BuildContext context,
 //   EditPageViewModel vm,
 //   int index,
-// ) 
+// )
 // //   final text = vm.texts[index];
 //   final controller = TextEditingController(text: text.text);
 
@@ -345,3 +401,33 @@ void _showEditTextBottomSheet(
 //     ),
 //   );
 // }
+void _showAddImageSheet(BuildContext context, EditPageViewModel vm) {
+  showModalBottomSheet(
+    context: context,
+    builder: (_) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: const Text('From library'),
+            onTap: () async {
+              final picker = ImagePicker();
+              final img = await picker.pickImage(source: ImageSource.gallery);
+              if (img != null) vm.addImage(img.path);
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            title: const Text('Take a photo'),
+            onTap: () async {
+              final picker = ImagePicker();
+              final img = await picker.pickImage(source: ImageSource.camera);
+              if (img != null) vm.addImage(img.path);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}

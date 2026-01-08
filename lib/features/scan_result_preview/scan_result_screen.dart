@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../documents/document_repository.dart';
-import '../pdf/pdf_edit/edit_models.dart';
+
 import '../pdf/pdf_edit/edit_page_screen.dart';
+import '../pdf/pdf_edit/edit_result.dart';
+import '../pdf/pdf_edit/text_overlay.dart';
 import 'scan_compose_viewmodel.dart';
 import 'action_item.dart';
 
@@ -106,7 +108,7 @@ class _ScanResultViewState extends State<_ScanResultView> {
 
                         return Stack(
                           children: [
-                            // ===== IMAGE =====
+                            // ===== IMAGE BASE =====
                             Positioned(
                               left: offsetX,
                               top: offsetY,
@@ -115,47 +117,54 @@ class _ScanResultViewState extends State<_ScanResultView> {
                               child: Image.file(imageFile, fit: BoxFit.contain),
                             ),
 
-                            // ===== TEXT OVERLAYS =====
-                            ...vm.overlaysOfPage(index).asMap().entries.map((
-                              entry,
-                            ) {
-                              return LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final width = renderSize.width;
-                                  final height = renderSize.height;
+                            // ===== IMAGE OVERLAYS (FIXED) =====
+                            ...vm.imageOverlaysOfPage(index).map((img) {
+                              final left =
+                                  offsetX +
+                                  img.relativePosition.dx * renderSize.width;
+                              final top =
+                                  offsetY +
+                                  img.relativePosition.dy * renderSize.height;
 
-                                  return Stack(
-                                    children: vm
-                                        .overlaysOfPage(index)
-                                        .asMap()
-                                        .entries
-                                        .map((entry) {
-                                          final t = entry.value;
+                              return Positioned(
+                                left: left,
+                                top: top,
+                                child: Transform.rotate(
+                                  angle: img.rotation,
+                                  child: Transform.scale(
+                                    scale: img.scale,
+                                    child: Image.file(File(img.imagePath)),
+                                  ),
+                                ),
+                              );
+                            }),
 
-                                          final left =
-                                              offsetX +
-                                              t.relativePosition.dx * width;
-                                          final top =
-                                              offsetY +
-                                              t.relativePosition.dy * height;
+                            // ===== TEXT OVERLAYS (FIXED) =====
+                            ...vm.textOverlaysOfPage(index).map((t) {
+                              final left =
+                                  offsetX +
+                                  t.relativePosition.dx * renderSize.width;
+                              final top =
+                                  offsetY +
+                                  t.relativePosition.dy * renderSize.height;
 
-                                          return Positioned(
-                                            left: left,
-                                            top: top,
-                                            child: Text(
-                                              t.text,
-                                              style: TextStyle(
-                                                fontSize: t.fontScale * width,
-                                                color: t.color,
-                                                backgroundColor: Colors.white
-                                                    .withOpacity(0.6),
-                                              ),
-                                            ),
-                                          );
-                                        })
-                                        .toList(),
-                                  );
-                                },
+                              return Positioned(
+                                left: left,
+                                top: top,
+                                child: Transform.rotate(
+                                  angle: t.rotation,
+                                  child: Text(
+                                    t.text,
+                                    style: TextStyle(
+                                      fontSize: t.fontScale * renderSize.width,
+                                      color: t.color,
+                                      fontFamily: t.fontFamily,
+                                      backgroundColor: Colors.white.withOpacity(
+                                        0.6,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               );
                             }),
                           ],
@@ -208,19 +217,24 @@ class _ScanResultViewState extends State<_ScanResultView> {
                     final vm = context.read<DocumentComposeViewModel>();
                     final pageIndex = vm.currentIndex;
 
-                    final overlays = await Navigator.push<List<TextOverlay>>(
+                    final result = await Navigator.push<EditPageResult>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => EditPageScreen(
                           imagePath: vm.imageUris[pageIndex],
                           pageIndex: pageIndex,
-                          initialTexts: vm.overlaysOfPage(pageIndex),
+                          initialTexts: vm.textOverlaysOfPage(pageIndex),
+                          initialImages: vm.imageOverlaysOfPage(pageIndex),
                         ),
                       ),
                     );
 
-                    if (overlays != null) {
-                      vm.setPageTextOverlays(pageIndex, overlays);
+                    if (result != null) {
+                      vm.setPageTextOverlays(pageIndex, result.texts);
+                      vm.setPageImageOverlays(
+                        pageIndex,
+                        result.images,
+                      ); // 🔥 FIX
                     }
                   },
                 ),
