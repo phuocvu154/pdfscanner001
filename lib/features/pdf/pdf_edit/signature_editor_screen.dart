@@ -1,15 +1,21 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
+import 'signature_canvas.dart';
 import 'signature_item.dart';
+import 'signature_path_point.dart';
 import 'signature_repository.dart';
 
 class SignatureResult {
   final String imagePath;
   SignatureResult(this.imagePath);
 }
+
 class SignatureEditorScreen extends StatefulWidget {
   const SignatureEditorScreen({super.key});
 
@@ -22,6 +28,9 @@ class _SignatureEditorScreenState extends State<SignatureEditorScreen> {
   Color color = Colors.black;
 
   List<SignatureItem> saved = [];
+
+  List<SignaturePoint> _points = [];
+  final _repaintKey = GlobalKey();
 
   @override
   void initState() {
@@ -55,18 +64,54 @@ class _SignatureEditorScreenState extends State<SignatureEditorScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
-            onPressed: () {}, // dùng khi vẽ tay
+            onPressed: () async {
+              if (_points.isEmpty) return;
+
+              final path = await _exportSignature();
+              final saved = await repo.save(File(path));
+
+              Navigator.pop(context, SignatureResult(saved));
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () => setState(() => _points.clear()),
           ),
         ],
       ),
       body: Column(
         children: [
           // ===== DRAW AREA (vẽ tay – sẽ làm tiếp nếu bạn muốn) =====
+          // Expanded(
+          //   child: Center(
+          //     child: Text(
+          //       'Sign here',
+          //       style: TextStyle(color: Colors.grey.shade400),
+          //     ),
+          //   ),
+          // ),
           Expanded(
-            child: Center(
-              child: Text(
-                'Sign here',
-                style: TextStyle(color: Colors.grey.shade400),
+            child: RepaintBoundary(
+              key: _repaintKey,
+              child: GestureDetector(
+                onPanStart: (d) {
+                  setState(() {
+                    _points.add(SignaturePoint(d.localPosition));
+                  });
+                },
+                onPanUpdate: (d) {
+                  setState(() {
+                    _points.add(SignaturePoint(d.localPosition));
+                  });
+                },
+                onPanEnd: (_) {
+                  _points.add(SignaturePoint.breakPoint());
+                },
+                child: Container(
+                  color: Colors.white,
+                  child: SignatureCanvas(points: _points, color: color),
+                ),
               ),
             ),
           ),
@@ -148,5 +193,23 @@ class _SignatureEditorScreenState extends State<SignatureEditorScreen> {
         Text(label),
       ],
     );
+  }
+
+  Future<String> _exportSignature() async {
+    final boundary =
+        _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+
+    final image = await boundary.toImage(pixelRatio: 3);
+    final byteData = await image.toByteData(format: ImageByteFormat.png);
+
+    final bytes = byteData!.buffer.asUint8List();
+
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/sig_${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+
+    await file.writeAsBytes(bytes);
+    return file.path;
   }
 }

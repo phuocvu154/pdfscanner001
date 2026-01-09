@@ -6,6 +6,7 @@ import 'edit_page_viewmodel.dart';
 import 'edit_result.dart';
 import 'image_overlay.dart';
 import 'signature_editor_screen.dart';
+import 'signature_text_editor.dart';
 import 'text_overlay.dart';
 import 'text_style_editor.dart';
 import 'package:image_picker/image_picker.dart';
@@ -257,6 +258,18 @@ class _EditToolbar extends StatelessWidget {
             if (result != null) {
               vm.addImage(result.imagePath); // 🔥 DÙNG LẠI IMAGE OVERLAY
             }
+          }),
+          _tool(Icons.edit, 'Signature Text', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SignatureTextEditor(
+                  onDone: (path) {
+                    vm.addImage(path); // 🔥 dùng ImageOverlay
+                  },
+                ),
+              ),
+            );
           }),
         ],
       ),
