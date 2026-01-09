@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'edit_page_viewmodel.dart';
 import 'edit_result.dart';
 import 'image_overlay.dart';
+import 'signature_editor_screen.dart';
 import 'text_overlay.dart';
 import 'text_style_editor.dart';
 import 'package:image_picker/image_picker.dart';
@@ -92,7 +93,7 @@ class _EditView extends StatelessWidget {
                           height: renderSize.height,
                           child: Image.file(imageFile, fit: BoxFit.contain),
                         ),
-                        
+
                         // ===== IMAGE OVERLAY LAYER =====
                         ...vm.images.asMap().entries.map((entry) {
                           final i = entry.key;
@@ -247,7 +248,16 @@ class _EditToolbar extends StatelessWidget {
           _tool(Icons.image, 'Add Image', () {
             _showAddImageSheet(context, vm);
           }),
-          _tool(Icons.edit, 'Signature', () {}),
+          _tool(Icons.edit, 'Signature', () async {
+            final result = await Navigator.push<SignatureResult>(
+              context,
+              MaterialPageRoute(builder: (_) => const SignatureEditorScreen()),
+            );
+
+            if (result != null) {
+              vm.addImage(result.imagePath); // 🔥 DÙNG LẠI IMAGE OVERLAY
+            }
+          }),
         ],
       ),
     );
