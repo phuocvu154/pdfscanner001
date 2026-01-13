@@ -12,6 +12,7 @@ import 'features/home/home_view.dart';
 
 import 'features/pdf/pdf_view/pdf_view_screen.dart';
 import 'features/scan_result_preview/scan_compose_viewmodel.dart';
+import 'features/signature/signature_repository.dart';
 
 
 Future<void> main() async {
@@ -59,6 +60,9 @@ class MyApp extends StatelessWidget {
         // ChangeNotifierProvider(create: (_) => ScanViewModel()),
         // ChangeNotifierProvider(
         //   create: (_) => PdfViewModel(PdfRepository(), documentRepo),
+        // ),
+        // ChangeNotifierProvider(
+        //   create: (_) => SignatureRepository()..load(),
         // ),
       ],
       child: MaterialApp(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../signature/signature_manager_screen.dart';
 import 'edit_page_viewmodel.dart';
 import 'edit_result.dart';
 import 'image_overlay.dart';
@@ -249,6 +250,19 @@ class _EditToolbar extends StatelessWidget {
           _tool(Icons.image, 'Add Image', () {
             _showAddImageSheet(context, vm);
           }),
+
+          // _tool(Icons.edit, 'Signature', () {
+          //   Navigator.push(
+          //     context,
+          //     MaterialPageRoute(
+          //       builder: (_) => SignatureManagerScreen(
+          //         onSelect: (path) {
+          //           vm.addImage(path); // ImageOverlay
+          //         },
+          //       ),
+          //     ),
+          //   );
+          // }),
           _tool(Icons.edit, 'Signature', () async {
             final result = await Navigator.push<SignatureResult>(
               context,

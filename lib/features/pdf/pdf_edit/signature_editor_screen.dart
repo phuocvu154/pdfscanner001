@@ -109,7 +109,7 @@ class _SignatureEditorScreenState extends State<SignatureEditorScreen> {
                   _points.add(SignaturePoint.breakPoint());
                 },
                 child: Container(
-                  color: Colors.white,
+                  color: Colors.transparent, // Colors.white,
                   child: SignatureCanvas(points: _points, color: color),
                 ),
               ),
