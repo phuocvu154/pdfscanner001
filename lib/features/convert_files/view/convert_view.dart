@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../documents/document_repository.dart';
+import '../../documents/document_viewmodel.dart';
+import '../../home/home_types.dart';
+import '../../home/home_viewmodel.dart';
+import '../../pdf/pdf_view/pdf_view_screen.dart';
+import '../../scan_result_preview/scan_result_screen.dart';
 import '../viewmodel/convert_viewmodel.dart';
 
 class ConvertView extends StatelessWidget {
@@ -8,7 +14,7 @@ class ConvertView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => ConvertViewModel(),
+      create: (_) => ConvertViewModel(context.read<DocumentRepository>()),
       child: const _ConvertContent(),
     );
   }
@@ -25,6 +31,7 @@ class _ConvertContent extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _convertCard(context, 'DOC to PDF', Icons.description),
+        _convertCard(context, 'EXCEL to PDF', Icons.table_chart),
         _convertCard(context, 'PNG to PDF', Icons.image),
         _convertCard(context, 'SVG to PDF', Icons.draw),
         _convertCard(context, 'JPG to PDF', Icons.photo),
@@ -39,7 +46,26 @@ class _ConvertContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.read<ConvertViewModel>().onSelect(title),
+        onTap: () async {
+          final doc = await context.read<ConvertViewModel>().onSelect(title);
+
+          if (doc != null && context.mounted) {
+            // 1️⃣ add vào documents
+            context.read<DocumentsViewModel>().addDocument(doc);
+
+            // 2️⃣ chuyển tab về My Files
+            context.read<HomeViewModel>().changeTab(HomeTab.myFiles);
+
+            // 3️⃣ mở ScanResult
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PdfViewScreen(document: doc),
+              ),
+            );
+          }
+        },
+
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

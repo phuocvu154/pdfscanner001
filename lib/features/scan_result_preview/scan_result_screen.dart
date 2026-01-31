@@ -196,8 +196,10 @@ class _ScanResultViewState extends State<_ScanResultView> {
 
                 // ===== IMAGE OVERLAYS =====
                 ...vm.imageOverlaysOfPage(index).map((img) {
-                  final centerX = offsetX + img.relativePosition.dx * renderSize.width;
-                  final centerY = offsetY + img.relativePosition.dy * renderSize.height;
+                  final centerX =
+                      offsetX + img.relativePosition.dx * renderSize.width;
+                  final centerY =
+                      offsetY + img.relativePosition.dy * renderSize.height;
                   final sizePx = img.scale * renderSize.width;
 
                   return Positioned(
@@ -216,8 +218,10 @@ class _ScanResultViewState extends State<_ScanResultView> {
 
                 // ===== TEXT OVERLAYS =====
                 ...vm.textOverlaysOfPage(index).map((t) {
-                  final left = offsetX + t.relativePosition.dx * renderSize.width;
-                  final top = offsetY + t.relativePosition.dy * renderSize.height;
+                  final left =
+                      offsetX + t.relativePosition.dx * renderSize.width;
+                  final top =
+                      offsetY + t.relativePosition.dy * renderSize.height;
                   final fontSize = t.fontScale * renderSize.width;
 
                   return Positioned(
@@ -264,8 +268,10 @@ class _ScanResultViewState extends State<_ScanResultView> {
 
     // 🔥 Cập nhật ngay khi nhận kết quả
     if (result != null) {
-      print('📝 Received edit result: ${result.texts.length} texts, ${result.images.length} images');
-      
+      print(
+        '📝 Received edit result: ${result.texts.length} texts, ${result.images.length} images',
+      );
+
       vm.setPageTextOverlays(pageIndex, result.texts);
       vm.setPageImageOverlays(pageIndex, result.images);
 
@@ -301,9 +307,9 @@ class _ScanResultViewState extends State<_ScanResultView> {
 
   void _comingSoon(BuildContext context, String feature) {
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature – coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$feature – coming soon')));
   }
 
   Future<ImageInfo> _getImageInfo(Image image) {
