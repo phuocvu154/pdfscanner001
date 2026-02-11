@@ -24,6 +24,7 @@ class ImageToPdfConverter {
         File('${dir.path}/image_${DateTime.now().millisecondsSinceEpoch}.pdf');
 
     await file.writeAsBytes(await pdf.save());
+    print(file.path);
     return file;
   }
 }

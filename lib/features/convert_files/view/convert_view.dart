@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../documents/document_repository.dart';
 import '../../documents/document_viewmodel.dart';
 import '../../home/home_types.dart';
 import '../../home/home_viewmodel.dart';
 import '../../pdf/pdf_view/pdf_view_screen.dart';
-import '../../scan_result_preview/scan_result_screen.dart';
 import '../viewmodel/convert_viewmodel.dart';
 
 class ConvertView extends StatelessWidget {
@@ -30,11 +30,15 @@ class _ConvertContent extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        _convertCard(context, 'PNG to PDF', Icons.image),
+        _convertCard(context, 'JPG to PDF', Icons.photo),
+        _convertCard(
+          context,
+          'SVG to PDF',
+          Icons.picture_in_picture_alt_outlined,
+        ),
         _convertCard(context, 'DOC to PDF', Icons.description),
         _convertCard(context, 'EXCEL to PDF', Icons.table_chart),
-        _convertCard(context, 'PNG to PDF', Icons.image),
-        _convertCard(context, 'SVG to PDF', Icons.draw),
-        _convertCard(context, 'JPG to PDF', Icons.photo),
         const SizedBox(height: 12),
         _otherSection(vm),
       ],
@@ -50,22 +54,16 @@ class _ConvertContent extends StatelessWidget {
           final doc = await context.read<ConvertViewModel>().onSelect(title);
 
           if (doc != null && context.mounted) {
-            // 1️⃣ add vào documents
             context.read<DocumentsViewModel>().addDocument(doc);
 
-            // 2️⃣ chuyển tab về My Files
             context.read<HomeViewModel>().changeTab(HomeTab.myFiles);
 
-            // 3️⃣ mở ScanResult
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => PdfViewScreen(document: doc),
-              ),
+              MaterialPageRoute(builder: (_) => PdfViewScreen(document: doc)),
             );
           }
         },
-
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

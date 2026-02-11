@@ -52,7 +52,7 @@ class _PdfViewBodyState extends State<_PdfViewBody> {
   Widget build(BuildContext context) {
     final vm = context.watch<PdfViewViewModel>();
 
-    if (vm.isLoading || vm.pages.isEmpty) {
+    if (vm.isLoading || vm.pageImagePaths.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(title: Text(vm.document.name)),

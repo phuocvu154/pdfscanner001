@@ -24,8 +24,8 @@ class PdfViewViewModel extends ChangeNotifier {
     _loadPages();
   }
 
-  final List<Uint8List> _pages = [];
-  final List<String> _pageImagePaths = []; // 🔴 THÊM: lưu path của từng page
+  // 🔴 BỎ _pages list để tiết kiệm RAM
+  final List<String> _pageImagePaths = [];
 
   final Map<int, List<TextOverlay>> _pageTextOverlays = {};
   final Map<int, List<ImageOverlay>> _pageImageOverlays = {};
@@ -35,13 +35,12 @@ class PdfViewViewModel extends ChangeNotifier {
   bool _isProcessing = false;
 
   // ===== GETTERS =====
-  List<Uint8List> get pages => _pages;
-  List<String> get pageImagePaths => _pageImagePaths; // 🔴 THÊM
-  int get total => _pages.length;
+  List<String> get pageImagePaths => _pageImagePaths;
+  int get total => _pageImagePaths.length;
   int get currentIndex => _currentIndex;
   bool get isLoading => _isLoading;
   bool get isProcessing => _isProcessing;
-  bool get isAddingPage => _isProcessing; // backward compatible
+  bool get isAddingPage => _isProcessing;
 
   List<TextOverlay> textOverlaysOfPage(int page) =>
       _pageTextOverlays[page] ?? [];
@@ -54,10 +53,8 @@ class PdfViewViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _pages.clear();
       _pageImagePaths.clear();
 
-      // 🔴 DEBUG: Kiểm tra document.path
       debugPrint('📂 Loading PDF from: ${document.path}');
 
       if (!File(document.path).existsSync()) {
@@ -70,25 +67,23 @@ class PdfViewViewModel extends ChangeNotifier {
 
       debugPrint('📄 PDF size: ${bytes.length} bytes');
 
-      final raster = Printing.raster(bytes, dpi: 200);
+      // 🔴 DPI thấp để tránh OOM (72-100 là đủ cho preview)
+      final raster = Printing.raster(bytes, dpi: 72);
 
       int pageIndex = 0;
       await for (final page in raster) {
         final pngBytes = await page.toPng();
-        _pages.add(pngBytes);
 
-        // 🔴 Tạo unique temp file path
         final imagePath =
             '${tempDir.path}/pdf_page_${document.id}_$pageIndex.png';
         await File(imagePath).writeAsBytes(pngBytes);
         _pageImagePaths.add(imagePath);
 
-        debugPrint('✅ Page $pageIndex saved to: $imagePath');
-
+        debugPrint('✅ Page $pageIndex saved');
         pageIndex++;
       }
 
-      debugPrint('✅ Total pages loaded: ${_pages.length}');
+      debugPrint('✅ Total pages loaded: ${_pageImagePaths.length}');
     } catch (e, s) {
       debugPrint('❌ Load PDF failed: $e');
       debugPrint('$s');
@@ -106,17 +101,16 @@ class PdfViewViewModel extends ChangeNotifier {
 
   // ===== DELETE PAGE =====
   void deleteCurrent() {
-    if (_pages.length <= 1) return;
+    if (_pageImagePaths.length <= 1) return;
 
-    _pages.removeAt(_currentIndex);
     _pageImagePaths.removeAt(_currentIndex);
     _pageTextOverlays.remove(_currentIndex);
     _pageImageOverlays.remove(_currentIndex);
 
     _shiftOverlayIndices(_currentIndex);
 
-    if (_currentIndex >= _pages.length) {
-      _currentIndex = _pages.length - 1;
+    if (_currentIndex >= _pageImagePaths.length) {
+      _currentIndex = _pageImagePaths.length - 1;
     }
     notifyListeners();
   }
@@ -170,7 +164,7 @@ class PdfViewViewModel extends ChangeNotifier {
       );
 
       await _loadPages();
-      _currentIndex = _pages.length - 1;
+      _currentIndex = _pageImagePaths.length - 1;
     } finally {
       _isProcessing = false;
       notifyListeners();
@@ -198,7 +192,6 @@ class PdfViewViewModel extends ChangeNotifier {
 
   // ===== SAVE WITH EDITS =====
   Future<void> saveWithEdits() async {
-    // Nếu không có edit gì thì không cần save
     if (_pageTextOverlays.isEmpty && _pageImageOverlays.isEmpty) {
       return;
     }
@@ -210,7 +203,6 @@ class PdfViewViewModel extends ChangeNotifier {
       const pageFormat = PdfPageFormat.a4;
       final pdf = pw.Document();
 
-      // 🔴 SỬA: Dùng _pageImagePaths thay vì document.path
       for (int pageIndex = 0; pageIndex < _pageImagePaths.length; pageIndex++) {
         final bytes = await File(_pageImagePaths[pageIndex]).readAsBytes();
 
@@ -238,7 +230,6 @@ class PdfViewViewModel extends ChangeNotifier {
           Rect.fromLTWH(0, 0, pageFormat.width, pageFormat.height),
         );
 
-        // ===== DRAW IMAGE =====
         canvas.drawImageRect(
           uiImage,
           Rect.fromLTWH(0, 0, imgW, imgH),
@@ -246,7 +237,6 @@ class PdfViewViewModel extends ChangeNotifier {
           Paint(),
         );
 
-        // ===== DRAW TEXT =====
         final texts = _pageTextOverlays[pageIndex] ?? [];
         for (final t in texts) {
           final fontSize = t.fontScale * renderW;
@@ -274,7 +264,6 @@ class PdfViewViewModel extends ChangeNotifier {
           canvas.restore();
         }
 
-        // ===== DRAW IMAGE OVERLAY =====
         final images = _pageImageOverlays[pageIndex] ?? [];
         for (final img in images) {
           final centerX = offsetX + img.relativePosition.dx * renderW;
@@ -312,7 +301,9 @@ class PdfViewViewModel extends ChangeNotifier {
 
         final pngBytes = (await composed.toByteData(
           format: ui.ImageByteFormat.png,
-        ))!.buffer.asUint8List();
+        ))!
+            .buffer
+            .asUint8List();
 
         pdf.addPage(
           pw.Page(
@@ -322,7 +313,6 @@ class PdfViewViewModel extends ChangeNotifier {
         );
       }
 
-      // 🔴 Overwrite original PDF file
       final file = File(document.path);
       await file.writeAsBytes(await pdf.save());
 

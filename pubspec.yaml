@@ -54,6 +54,10 @@ dependencies:
   hive: ^2.2.3
   path: ^1.9.1
   pdf_render_maintained: ^1.6.1
+  flutter_pdfview: ^1.4.4
+  # syncfusion_flutter_xlsio: ^32.2.4
+  excel: ^4.0.6
+  flutter_svg: ^2.2.3
  
 
 dev_dependencies:
@@ -115,5 +119,11 @@ flutter:
     - family: GreatVibes
       fonts:
         - asset: assets/fonts/GreatVibes-Regular.ttf
+    - family: Roboto
+      fonts: 
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
+        - asset: assets/fonts/Roboto-Italic.ttf
+        - asset: assets/fonts/Roboto-BoldItalic.ttf
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
