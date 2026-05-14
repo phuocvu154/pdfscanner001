@@ -11,6 +11,8 @@ import 'signature_text_editor.dart';
 import 'text_overlay.dart';
 import 'text_style_editor.dart';
 import 'package:image_picker/image_picker.dart';
+import 'editable_image_box.dart';
+import 'resize_handle.dart';
 
 class EditPageScreen extends StatelessWidget {
   final String imagePath;
@@ -49,6 +51,7 @@ class _EditView extends StatelessWidget {
     final vm = context.watch<EditPageViewModel>();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false, // ✅ thêm dòng này
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text('Edit page ${pageIndex + 1}'),
@@ -82,7 +85,7 @@ class _EditView extends StatelessWidget {
 
                     // Bên trong LayoutBuilder, sau khi tính renderSize:
                     final renderSize = fitted.destination;
-                    vm.setRenderSize(renderSize); // ← thêm dòng này
+                    //vm.setRenderSize(renderSize); // ← thêm dòng này
 
                     final offsetX =
                         (constraints.maxWidth - renderSize.width) / 2;
@@ -114,58 +117,86 @@ class _EditView extends StatelessWidget {
                           final i = entry.key;
                           final img = entry.value;
 
-                          final centerX =
-                              offsetX +
-                              img.relativePosition.dx * renderSize.width;
-                          final centerY =
-                              offsetY +
-                              img.relativePosition.dy * renderSize.height;
+                          final overlayFile = File(img.imagePath);
 
-                          final sizePx =
-                              img.scale * renderSize.width; // displayWidth
+                          return FutureBuilder<ImageInfo>(
+                            future: _getImageInfo(Image.file(overlayFile)),
+                            builder: (context, overlaySnapshot) {
+                              if (!overlaySnapshot.hasData)
+                                return const SizedBox();
 
-                          // Tính displayHeight theo aspect ratio thật
-                          final naturalSize = img.naturalSize;
-                          final displayHeight =
-                              (naturalSize != null && naturalSize.width > 0)
-                              ? sizePx *
-                                    (naturalSize.height / naturalSize.width)
-                              : sizePx; // fallback vuông nếu chưa load xong
+                              final overlayW = overlaySnapshot.data!.image.width
+                                  .toDouble();
+                              final overlayH = overlaySnapshot
+                                  .data!
+                                  .image
+                                  .height
+                                  .toDouble();
 
-                          return Positioned(
-                            left: centerX - sizePx / 2,
-                            top:
-                                centerY -
-                                displayHeight / 2, // ✅ dùng displayHeight thật
-                            child: GestureDetector(
-                              onScaleStart: vm.onImageScaleStart(i),
-                              onScaleUpdate: (details) {
-                                if (details.pointerCount == 1 &&
-                                    details.scale == 1.0) {
-                                  vm.moveImage(
-                                    i,
-                                    details.focalPointDelta,
-                                    renderSize,
-                                  );
-                                } else if (details.pointerCount >= 2) {
-                                  vm.onImageScaleUpdate(i, renderSize)(details);
-                                }
-                              },
-                              onLongPress: () => vm.selectImage(i),
-                              child: Transform.rotate(
-                                angle: img.rotation,
-                                child: Image.file(
-                                  File(img.imagePath),
-                                  width: sizePx,
-                                  height: displayHeight, // ✅ set cả height
-                                  fit: BoxFit
-                                      .fill, // ✅ dùng fill vì đã tính đúng ratio
+                              if (overlayW <= 0 || overlayH <= 0)
+                                return const SizedBox();
+
+                              final centerX =
+                                  offsetX +
+                                  img.relativePosition.dx * renderSize.width;
+                              final centerY =
+                                  offsetY +
+                                  img.relativePosition.dy * renderSize.height;
+
+                              final displayW = img.scale * renderSize.width;
+                              final displayH = displayW * (overlayH / overlayW);
+
+                              return Positioned(
+                                left: centerX - displayW / 2,
+                                top: centerY - displayH / 2,
+                                width: displayW,
+                                height: displayH,
+                                child: EditableImageBox(
+                                  image: img,
+                                  displaySize: Size(displayW, displayH),
+
+                                  onTap: () => vm.selectImage(i),
+
+                                  onMove: (delta) {
+                                    vm.moveImage(i, delta, renderSize);
+                                  },
+
+                                  onScaleStart: vm.onImageScaleStart(i),
+
+                                  onScaleUpdate: (details) {
+                                    if (details.pointerCount >= 2) {
+                                      vm.onImageScaleUpdate(i, renderSize)(
+                                        details,
+                                      );
+                                    }
+                                  },
+
+                                  onResizeStart: () => vm.beginImageResize(i),
+
+                                  onResize: (delta, handle) {
+                                    vm.resizeImageByHandle(
+                                      i,
+                                      delta,
+                                      renderSize,
+                                      handle,
+                                    );
+                                  },
+
+                                  onRotateStart: () => vm.beginImageRotate(i),
+
+                                  onRotate: (globalPosition) {
+                                    vm.rotateImageByHandle(
+                                      i,
+                                      Offset(centerX, centerY),
+                                      globalPosition,
+                                      renderSize,
+                                    );
+                                  },
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           );
                         }),
-
                         // ===== TEXT LAYER =====
                         ...vm.texts.asMap().entries.map((entry) {
                           final i = entry.key;
@@ -181,14 +212,13 @@ class _EditView extends StatelessWidget {
                             child: GestureDetector(
                               onScaleStart: vm.onScaleStart(i),
                               onScaleUpdate: (details) {
-                                if (details.pointerCount == 1 &&
-                                    details.scale == 1.0) {
+                                if (details.pointerCount == 1) {
                                   vm.moveText(
                                     i,
                                     details.focalPointDelta,
                                     renderSize,
                                   );
-                                } else if (details.pointerCount >= 2) {
+                                } else {
                                   vm.onScaleUpdate(i)(details);
                                 }
                               },

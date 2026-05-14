@@ -53,40 +53,34 @@ class PdfViewViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _pageImagePaths.clear();
-
-      debugPrint('📂 Loading PDF from: ${document.path}');
-
-      if (!File(document.path).existsSync()) {
-        debugPrint('❌ PDF file not found!');
-        return;
+      for (final oldPath in _pageImagePaths) {
+        final oldFile = File(oldPath);
+        if (oldFile.existsSync()) {
+          await oldFile.delete();
+        }
       }
+
+      _pageImagePaths.clear();
 
       final tempDir = await getTemporaryDirectory();
       final bytes = await File(document.path).readAsBytes();
 
-      debugPrint('📄 PDF size: ${bytes.length} bytes');
-
-      // 🔴 DPI thấp để tránh OOM (72-100 là đủ cho preview)
-      final raster = Printing.raster(bytes, dpi: 150);
+      final raster = Printing.raster(bytes, dpi: 72);
 
       int pageIndex = 0;
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+
       await for (final page in raster) {
         final pngBytes = await page.toPng();
 
         final imagePath =
-            '${tempDir.path}/pdf_page_${document.id}_$pageIndex.png';
-        await File(imagePath).writeAsBytes(pngBytes);
+            '${tempDir.path}/pdf_page_${document.id}_${stamp}_$pageIndex.png';
+
+        await File(imagePath).writeAsBytes(pngBytes, flush: true);
         _pageImagePaths.add(imagePath);
 
-        debugPrint('✅ Page $pageIndex saved');
         pageIndex++;
       }
-
-      debugPrint('✅ Total pages loaded: ${_pageImagePaths.length}');
-    } catch (e, s) {
-      debugPrint('❌ Load PDF failed: $e');
-      debugPrint('$s');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -192,10 +186,7 @@ class PdfViewViewModel extends ChangeNotifier {
 
   // ===== SAVE WITH EDITS =====
   Future<void> saveWithEdits() async {
-    if (_pageTextOverlays.isEmpty && _pageImageOverlays.isEmpty) {
-      return;
-    }
-
+    // ✅ Bỏ early return — luôn save dù không có overlay
     _isProcessing = true;
     notifyListeners();
 
@@ -213,41 +204,29 @@ class PdfViewViewModel extends ChangeNotifier {
         final imgW = uiImage.width.toDouble();
         final imgH = uiImage.height.toDouble();
 
-        final baseScale = math.min(
-          pageFormat.width / imgW,
-          pageFormat.height / imgH,
-        );
-
-        final renderW = imgW * baseScale;
-        final renderH = imgH * baseScale;
-
-        final offsetX = (pageFormat.width - renderW) / 2;
-        final offsetY = (pageFormat.height - renderH) / 2;
-
+        // ✅ Dùng imgW/imgH làm canvas, không dùng A4 làm gốc tính offset
+        // để relativePosition khớp với EditPageScreen
         final recorder = ui.PictureRecorder();
-        final canvas = Canvas(
-          recorder,
-          Rect.fromLTWH(0, 0, pageFormat.width, pageFormat.height),
-        );
+        final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, imgW, imgH));
 
-        // ===== DRAW BASE PAGE IMAGE =====
+        // ===== DRAW BASE IMAGE =====
         canvas.drawImageRect(
           uiImage,
           Rect.fromLTWH(0, 0, imgW, imgH),
-          Rect.fromLTWH(offsetX, offsetY, renderW, renderH),
+          Rect.fromLTWH(0, 0, imgW, imgH), // ✅ full, không offset
           Paint(),
         );
 
         // ===== DRAW TEXT OVERLAYS =====
         final texts = _pageTextOverlays[pageIndex] ?? [];
         for (final t in texts) {
-          final fontSize = t.fontScale * renderW;
-
-          final dx = offsetX + t.relativePosition.dx * renderW;
-          final dy = offsetY + t.relativePosition.dy * renderH;
+          final fontSize = t.fontScale * imgW; // ✅ relative theo imgW
 
           canvas.save();
-          canvas.translate(dx, dy);
+          canvas.translate(
+            t.relativePosition.dx * imgW, // ✅ không cộng offsetX/offsetY
+            t.relativePosition.dy * imgH,
+          );
           canvas.rotate(t.rotation);
 
           final textPainter = TextPainter(
@@ -266,11 +245,11 @@ class PdfViewViewModel extends ChangeNotifier {
           canvas.restore();
         }
 
-        // ===== DRAW IMAGE OVERLAYS =====
+        // ===== DRAW IMAGE OVERLAYS (signature) =====
         final images = _pageImageOverlays[pageIndex] ?? [];
         for (final img in images) {
-          final centerX = offsetX + img.relativePosition.dx * renderW;
-          final centerY = offsetY + img.relativePosition.dy * renderH;
+          final centerX = img.relativePosition.dx * imgW; // ✅ không cộng offset
+          final centerY = img.relativePosition.dy * imgH;
 
           final overlayBytes = await File(img.imagePath).readAsBytes();
           final overlayCodec = await ui.instantiateImageCodec(overlayBytes);
@@ -278,52 +257,49 @@ class PdfViewViewModel extends ChangeNotifier {
           final overlayImage = overlayFrame.image;
 
           final overlayW = overlayImage.width.toDouble();
-          final overlayH = overlayImage.height.toDouble();
-
-          // img.scale được hiểu là tỉ lệ theo chiều rộng ảnh nền render
-          final displayWidth = img.scale * renderW;
-          final aspectRatio = overlayH / overlayW;
-          final displayHeight = displayWidth * aspectRatio;
+          final scalePx = img.scale * imgW; // ✅ scale theo imgW
 
           canvas.save();
           canvas.translate(centerX, centerY);
           canvas.rotate(img.rotation);
-
-          canvas.drawImageRect(
+          canvas.scale(scalePx / overlayW, scalePx / overlayW);
+          canvas.drawImage(
             overlayImage,
-            Rect.fromLTWH(0, 0, overlayW, overlayH),
-            Rect.fromCenter(
-              center: Offset.zero,
-              width: displayWidth,
-              height: displayHeight,
-            ),
+            Offset(-overlayW / 2, -overlayImage.height / 2),
             Paint(),
           );
-
           canvas.restore();
         }
 
         final picture = recorder.endRecording();
-        final composed = await picture.toImage(
-          pageFormat.width.toInt(),
-          pageFormat.height.toInt(),
-        );
+        // ✅ Canvas size = image size, không dùng A4
+        final composed = await picture.toImage(imgW.toInt(), imgH.toInt());
 
         final pngBytes = (await composed.toByteData(
           format: ui.ImageByteFormat.png,
         ))!.buffer.asUint8List();
 
+        // ✅ PDF page size = image size, không có margin trắng
         pdf.addPage(
           pw.Page(
-            pageFormat: pageFormat,
+            pageFormat: PdfPageFormat(imgW, imgH),
             build: (_) =>
-                pw.Image(pw.MemoryImage(pngBytes), fit: pw.BoxFit.contain),
+                pw.Image(pw.MemoryImage(pngBytes), fit: pw.BoxFit.fill),
           ),
         );
       }
 
-      final file = File(document.path);
-      await file.writeAsBytes(await pdf.save());
+      final output = File(document.path);
+      await output.writeAsBytes(await pdf.save());
+
+      debugPrint('✅ PDF saved with overlays');
+
+      // 🔥 FIX: sau khi bake vào PDF, phải xoá overlay tạm
+      _pageTextOverlays.clear();
+      _pageImageOverlays.clear();
+
+      // 🔥 reload lại page image từ PDF mới đã bake signature
+      await _loadPages();
 
       debugPrint('✅ PDF saved with edits: ${document.path}');
     } finally {

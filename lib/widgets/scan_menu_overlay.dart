@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pdfscanner001/features/scan_result_preview/scan_result_screen.dart';
 import 'package:pdfscanner001/features/scan_result_preview/scan_service.dart';
 
 import '../features/documents/document_item.dart';
 
-import '../features/scan_result_preview/scan_preview_screen.dart';
 
 class ScanMenuOverlay extends StatelessWidget {
   final VoidCallback onClose;

@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'text_overlay.dart';
 import 'image_overlay.dart';
+import 'resize_handle.dart';
 
 class EditPageViewModel extends ChangeNotifier {
   final String imagePath;
@@ -310,6 +312,71 @@ class EditPageViewModel extends ChangeNotifier {
     _restore(snapshot);
     notifyListeners();
   }
+
+  void beginImageResize(int index) {
+    if (index < 0 || index >= _images.length) return;
+    _pushUndo();
+    selectImage(index);
+  }
+
+  void resizeImageByHandle(
+    int index,
+    Offset delta,
+    Size renderSize,
+    ResizeHandle handle,
+  ) {
+    if (index < 0 || index >= _images.length) return;
+    if (renderSize.width <= 0) return;
+
+    final img = _images[index];
+
+    double direction;
+
+    switch (handle) {
+      case ResizeHandle.topLeft:
+        direction = -delta.dx - delta.dy;
+        break;
+      case ResizeHandle.topRight:
+        direction = delta.dx - delta.dy;
+        break;
+      case ResizeHandle.bottomLeft:
+        direction = -delta.dx + delta.dy;
+        break;
+      case ResizeHandle.bottomRight:
+        direction = delta.dx + delta.dy;
+        break;
+    }
+
+    final scaleDelta = direction / renderSize.width;
+    final newScale = (img.scale + scaleDelta).clamp(0.05, 1.5);
+
+    _images[index] = img.copyWith(scale: newScale);
+    notifyListeners();
+  }
+
+  void beginImageRotate(int index) {
+    if (index < 0 || index >= _images.length) return;
+    _pushUndo();
+    selectImage(index);
+  }
+
+  void rotateImageByHandle(
+    int index,
+    Offset center,
+    Offset globalPosition,
+    Size renderSize,
+  ) {
+    if (index < 0 || index >= _images.length) return;
+
+    final dx = globalPosition.dx - center.dx;
+    final dy = globalPosition.dy - center.dy;
+
+    final angle = math.atan2(dy, dx) + math.pi / 2;
+
+    _images[index] = _images[index].copyWith(rotation: angle);
+    notifyListeners();
+  }
+  
 }
 
 class _EditSnapshot {

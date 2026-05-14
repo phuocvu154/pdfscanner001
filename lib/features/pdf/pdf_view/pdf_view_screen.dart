@@ -70,8 +70,19 @@ class _PdfViewBodyState extends State<_PdfViewBody> {
         actions: [
           TextButton(
             onPressed: () async {
+              final vm = context.read<PdfViewViewModel>();
+
+              debugPrint(
+                '✅ DONE PDF VIEW: page=${vm.currentIndex}, '
+                'texts=${vm.textOverlaysOfPage(vm.currentIndex).length}, '
+                'images=${vm.imageOverlaysOfPage(vm.currentIndex).length}',
+              );
+
               await vm.saveWithEdits();
-              Navigator.pop(context, true);
+
+              if (context.mounted) {
+                Navigator.pop(context, true);
+              }
             },
             child: const Text('Done'),
           ),
@@ -273,12 +284,11 @@ class _PdfViewBodyState extends State<_PdfViewBody> {
     final vm = context.read<PdfViewViewModel>();
     final pageIndex = vm.currentIndex;
 
-    // 🔴 SỬA: Dùng pageImagePaths[pageIndex] thay vì document.path[pageIndex]
     final result = await Navigator.push<EditPageResult>(
       context,
       MaterialPageRoute(
         builder: (_) => EditPageScreen(
-          imagePath: vm.pageImagePaths[pageIndex], // ✅ ĐÂY LÀ ĐÚNG
+          imagePath: vm.pageImagePaths[pageIndex],
           pageIndex: pageIndex,
           initialTexts: vm.textOverlaysOfPage(pageIndex),
           initialImages: vm.imageOverlaysOfPage(pageIndex),
@@ -287,12 +297,16 @@ class _PdfViewBodyState extends State<_PdfViewBody> {
     );
 
     if (result != null) {
-      debugPrint(
-        '📝 Received edit result: ${result.texts.length} texts, ${result.images.length} images',
-      );
-
       vm.setPageTextOverlays(pageIndex, result.texts);
-      vm.setPageImageOverlays(pageIndex, result.images);
+      vm.setPageImageOverlays(pageIndex, result.images); // ← set đúng chưa?
+
+      // ✅ Thêm debug để xác nhận
+      debugPrint(
+        '📝 texts: ${result.texts.length}, images: ${result.images.length}',
+      );
+      debugPrint(
+        '📝 overlays sau khi set: ${vm.imageOverlaysOfPage(pageIndex).length}',
+      );
 
       setState(() {});
     }

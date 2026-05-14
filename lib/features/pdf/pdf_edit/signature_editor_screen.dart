@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -68,9 +69,10 @@ class _SignatureEditorScreenState extends State<SignatureEditorScreen> {
               if (_points.isEmpty) return;
 
               final path = await _exportSignature();
-              final saved = await repo.save(File(path));
 
-              Navigator.pop(context, SignatureResult(saved));
+              if (context.mounted) {
+                Navigator.pop(context, SignatureResult(path));
+              }
             },
           ),
 
@@ -196,20 +198,92 @@ class _SignatureEditorScreenState extends State<SignatureEditorScreen> {
   }
 
   Future<String> _exportSignature() async {
-    final boundary =
-        _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    if (_points.isEmpty) {
+      throw Exception('No signature points');
+    }
 
-    final image = await boundary.toImage(pixelRatio: 3);
-    final byteData = await image.toByteData(format: ImageByteFormat.png);
+    // Lấy các điểm thật, bỏ break point
+    final realPoints = _points
+        .where((p) => !p.isBreak)
+        .map((p) => p.point)
+        .toList();
+
+    if (realPoints.isEmpty) {
+      throw Exception('No drawable signature points');
+    }
+
+    double minX = realPoints.first.dx;
+    double maxX = realPoints.first.dx;
+    double minY = realPoints.first.dy;
+    double maxY = realPoints.first.dy;
+
+    for (final p in realPoints) {
+      if (p.dx < minX) minX = p.dx;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+
+    const padding = 24.0;
+
+    final cropLeft = (minX - padding).clamp(0.0, double.infinity);
+    final cropTop = (minY - padding).clamp(0.0, double.infinity);
+    final cropRight = maxX + padding;
+    final cropBottom = maxY + padding;
+
+    final cropWidth = (cropRight - cropLeft).clamp(1.0, double.infinity);
+    final cropHeight = (cropBottom - cropTop).clamp(1.0, double.infinity);
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, cropWidth, cropHeight));
+
+    // 🔥 KHÔNG vẽ nền trắng
+    // Canvas mặc định trong suốt
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    for (int i = 0; i < _points.length - 1; i++) {
+      final p1 = _points[i];
+      final p2 = _points[i + 1];
+
+      if (!p1.isBreak && !p2.isBreak) {
+        canvas.drawLine(
+          Offset(p1.point.dx - cropLeft, p1.point.dy - cropTop),
+          Offset(p2.point.dx - cropLeft, p2.point.dy - cropTop),
+          paint,
+        );
+      }
+    }
+
+    final picture = recorder.endRecording();
+
+    final image = await picture.toImage(cropWidth.ceil(), cropHeight.ceil());
+
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
     final bytes = byteData!.buffer.asUint8List();
 
-    final dir = await getTemporaryDirectory();
+    final dir = await getApplicationDocumentsDirectory();
+    final sigDir = Directory('${dir.path}/signatures');
+    if (!sigDir.existsSync()) {
+      sigDir.createSync(recursive: true);
+    }
+
     final file = File(
-      '${dir.path}/sig_${DateTime.now().millisecondsSinceEpoch}.png',
+      '${sigDir.path}/sig_${DateTime.now().millisecondsSinceEpoch}.png',
     );
 
     await file.writeAsBytes(bytes);
+
+    debugPrint('✅ Signature exported: ${file.path}');
+    debugPrint('✅ Signature crop size: ${cropWidth} x $cropHeight');
+
     return file.path;
   }
 }

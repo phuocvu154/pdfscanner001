@@ -341,7 +341,6 @@ class DocumentComposeViewModel extends ChangeNotifier {
           canvas.restore();
         }
 
-        
         // ===== DRAW IMAGE OVERLAY =====
         final images = _pageImageOverlays[pageIndex] ?? [];
 
