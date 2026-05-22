@@ -64,10 +64,14 @@ class _ScanResultViewState extends State<_ScanResultView> {
         ),
         actions: [
           TextButton(
-            onPressed: () async {
-              final doc = await vm.saveWithEdits();
-              Navigator.pop(context, doc);
-            },
+            onPressed: vm.isProcessing
+                ? null
+                : () async {
+                    final doc = await vm.saveWithEdits();
+                    if (!context.mounted) return;
+
+                    Navigator.pop(context, doc);
+                  },
             child: const Text('Done'),
           ),
         ],

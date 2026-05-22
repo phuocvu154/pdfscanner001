@@ -271,7 +271,9 @@ class DocumentComposeViewModel extends ChangeNotifier {
 
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final fileName = 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = _fileName.isNotEmpty
+          ? '${_fileName.replaceAll('.pdf', '')}.pdf'
+          : 'Scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final pdfPath = '${dir.path}/$fileName';
 
       final pdf = pw.Document();
