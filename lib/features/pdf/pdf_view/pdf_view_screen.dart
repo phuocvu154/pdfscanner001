@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 
 import '../../documents/document_item.dart';
@@ -20,7 +21,8 @@ class PdfViewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => PdfViewViewModel(document),
+      create: (_) =>
+          PdfViewViewModel(document, context.read<DocumentRepository>()),
       child: const _PdfViewBody(),
     );
   }
@@ -312,6 +314,90 @@ class _PdfViewBodyState extends State<_PdfViewBody> {
     }
   }
 
+  void _rename(BuildContext context) {
+    final vm = context.read<PdfViewViewModel>();
+
+    final controller = TextEditingController(
+      text: vm.document.name.replaceAll('.pdf', ''),
+    );
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Rename file'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'Enter new name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newName = controller.text.trim();
+
+                if (newName.isEmpty) return;
+
+                Navigator.pop(context); // đóng dialog trước
+
+                await vm.rename(newName); // 🔥 CALL VIEWMODEL
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // void _combine(BuildContext context) async {
+  //   final vm = context.read<PdfViewViewModel>();
+
+  //   Navigator.pop(context); // đóng bottom sheet trước
+
+  //   final doc = await vm.combine();
+
+  //   if (doc != null && context.mounted) {
+  //     Navigator.push(
+  //       context,
+  //       MaterialPageRoute(builder: (_) => PdfViewScreen(document: doc)),
+  //     );
+  //   }
+  // }
+
+  void _combine(BuildContext context) async {
+    final vm = context.read<PdfViewViewModel>();
+
+    Navigator.pop(context);
+
+    final doc = await vm.combineWithCurrent();
+
+    if (doc != null && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PdfViewScreen(document: doc)),
+      );
+    }
+  }
+
+  void _split(BuildContext context) async {
+    final vm = context.read<PdfViewViewModel>();
+
+    Navigator.pop(context);
+
+    final docs = await vm.splitPdf();
+
+    if (docs.isNotEmpty && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PdfViewScreen(document: docs.first)),
+      );
+    }
+  }
+
   void _showMoreMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -321,18 +407,77 @@ class _PdfViewBodyState extends State<_PdfViewBody> {
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SheetItem('Rename', () => _comingSoon(context, 'Rename')),
-          SheetItem('Combine', () => _comingSoon(context, 'Combine')),
-          SheetItem('Split', () => _comingSoon(context, 'Split')),
-          SheetItem('Bookmark', () => _comingSoon(context, 'Bookmark')),
-          SheetItem('Set Password', () => _comingSoon(context, 'Set password')),
-          SheetItem(
-            'Unset Password',
-            () => _comingSoon(context, 'Unset password'),
-          ),
+          SheetItem('Rename', () => _rename(context)),
+          SheetItem('Combine', () => _combine(context)),
+          SheetItem('Split', () => _showSplitDialog(context)),
+          // SheetItem('Bookmark', () => _comingSoon(context, 'Bookmark')),
+          // SheetItem('Set Password', () => _setPassword(context)),
+          // SheetItem('Unset Password', () => _unsetPassword(context)),
           const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+
+  void _showSplitDialog(BuildContext context) {
+    final vm = context.read<PdfViewViewModel>();
+
+    int mode = 0; // 0 = từng trang, 1 = range
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Split PDF'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile(
+                    value: 0,
+                    groupValue: mode,
+                    title: const Text('Split từng trang'),
+                    onChanged: (v) => setState(() => mode = v!),
+                  ),
+                  RadioListTile(
+                    value: 1,
+                    groupValue: mode,
+                    title: const Text('Split theo range'),
+                    onChanged: (v) => setState(() => mode = v!),
+                  ),
+                  if (mode == 1)
+                    TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        hintText: 'VD: 1-3,4-6',
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+
+                    if (mode == 0) {
+                      await vm.splitByPage();
+                    } else {
+                      await vm.splitByRange(controller.text);
+                    }
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

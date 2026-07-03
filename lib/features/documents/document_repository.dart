@@ -64,4 +64,9 @@ class DocumentRepository {
     final updated = old.copyWith(folderId: folderId);
     await box.put(documentId, updated);
   }
+
+  // ===== UPDATE =====
+  Future<void> updateDocument(DocumentItem updated) async {
+    await box.put(updated.id, updated);
+  }
 }

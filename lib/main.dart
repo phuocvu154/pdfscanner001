@@ -11,9 +11,9 @@ import 'features/folders/folder_repository.dart';
 import 'features/home/home_view.dart';
 
 import 'features/pdf/pdf_view/pdf_view_screen.dart';
+
 import 'features/scan_result_preview/scan_compose_viewmodel.dart';
 import 'features/signature/signature_repository.dart';
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

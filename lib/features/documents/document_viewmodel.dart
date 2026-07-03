@@ -1,17 +1,42 @@
-import 'package:flutter/foundation.dart';
-import 'package:pdfscanner001/features/documents/document_item.dart';
-import 'package:pdfscanner001/features/documents/document_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'document_repository.dart';
+import 'document_item.dart';
 
 class DocumentsViewModel extends ChangeNotifier {
   final DocumentRepository repo;
+
+  late final Box<DocumentItem> _box;
+
   List<DocumentItem> documents = [];
 
-  DocumentsViewModel(this.repo);
+  DocumentsViewModel(this.repo) {
+    _box = repo.box;
 
+    // 🔥 AUTO SYNC
+    _box.listenable().addListener(_onHiveChanged);
+
+    reload();
+  }
+
+  // 🔥 LISTENER
+  void _onHiveChanged() {
+    debugPrint('📦 Hive changed → auto reload');
+    documents = repo.getDocuments();
+    notifyListeners();
+  }
+
+  // ===== LOAD =====
   void loadDocuments() {
     documents
       ..clear()
       ..addAll(repo.getDocuments());
+    notifyListeners();
+  }
+
+  void reload() {
+    documents = repo.getDocuments();
     notifyListeners();
   }
 
@@ -69,32 +94,38 @@ class DocumentsViewModel extends ChangeNotifier {
     for (final id in _selectedIds) {
       await repo.moveToFolder(documentId: id, folderId: folderId);
     }
+
     clearSelection();
-    loadDocuments();
+
+    // ❌ KHÔNG cần loadDocuments nữa
   }
 
   // ===== CRUD =====
-  void addDocument(DocumentItem doc) {
-    documents.insert(0, doc);
-    notifyListeners();
+  Future<void> addDocument(DocumentItem doc) async {
+    await repo.saveFile(doc);
   }
 
   Future<void> deleteDocument(String id) async {
     await repo.deleteDocument(id);
-    documents.removeWhere((d) => d.id == id);
-    notifyListeners();
+
+    // ❌ KHÔNG cần remove thủ công
   }
 
   Future<void> moveDocumentToFolder(String documentId, String folderId) async {
     await repo.moveToFolder(documentId: documentId, folderId: folderId);
 
-    // 🔥 Cập nhật lại list sau khi move
-    loadDocuments();
+    // ❌ KHÔNG cần loadDocuments
   }
 
   // ===== SEARCH =====
   void search(String query) {
     _query = query;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _box.listenable().removeListener(_onHiveChanged);
+    super.dispose();
   }
 }

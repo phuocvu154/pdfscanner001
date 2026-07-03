@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
+
 import 'dart:ui' as ui;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
+import 'package:pdf/pdf.dart' hide PdfDocument;
 import 'package:pdf/widgets.dart' as pw;
+
 import 'package:printing/printing.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../documents/document_item.dart';
 import '../../documents/document_repository.dart';
@@ -17,10 +20,18 @@ import '../pdf_edit/image_overlay.dart';
 import '../pdf_edit/text_overlay.dart';
 import '../pdf_edit_service.dart';
 
-class PdfViewViewModel extends ChangeNotifier {
-  final DocumentItem document;
 
-  PdfViewViewModel(this.document) {
+import 'package:syncfusion_flutter_pdf/pdf.dart';
+
+import 'parse_range.dart';
+
+class PdfViewViewModel extends ChangeNotifier {
+  late DocumentItem _document;
+  final DocumentRepository _repo;
+
+  DocumentItem get document => _document;
+  PdfViewViewModel(DocumentItem document, this._repo) {
+    _document = document;
     _loadPages();
   }
 
@@ -313,10 +324,456 @@ class PdfViewViewModel extends ChangeNotifier {
   }
 
   // ===== PLACEHOLDER =====
-  void combine() {}
-  void split() {}
+
+  Future<List<DocumentItem>> splitByPage() async {
+    try {
+      final bytes = await File(document.path).readAsBytes();
+      final input = PdfDocument(inputBytes: bytes);
+
+      final dir = await getApplicationDocumentsDirectory();
+      final results = <DocumentItem>[];
+
+      for (int i = 0; i < input.pages.count; i++) {
+        final originalPage = input.pages[i];
+
+        final newDoc = PdfDocument();
+        final newPage = newDoc.pages.add();
+
+        final template = originalPage.createTemplate();
+
+        final pageWidth = newPage.getClientSize().width;
+        final pageHeight = newPage.getClientSize().height;
+
+        final templateWidth = template.size.width;
+        final templateHeight = template.size.height;
+
+        // 🔥 SCALE CHUẨN (FIX LANDSCAPE)
+        final scaleX = pageWidth / templateWidth;
+        final scaleY = pageHeight / templateHeight;
+        final scale = math.min(scaleX, scaleY);
+
+        final drawWidth = templateWidth * scale;
+        final drawHeight = templateHeight * scale;
+
+        final offsetX = (pageWidth - drawWidth) / 2;
+        final offsetY = (pageHeight - drawHeight) / 2;
+
+        newPage.graphics.drawPdfTemplate(
+          template,
+          Offset(offsetX, offsetY),
+          Size(drawWidth, drawHeight),
+        );
+
+        final name = '${document.name.replaceAll('.pdf', '')}_p${i + 1}.pdf';
+        final path = '${dir.path}/$name';
+
+        await File(path).writeAsBytes(await newDoc.save());
+        newDoc.dispose();
+
+        final docItem = DocumentItem(
+          id: const Uuid().v4(),
+          name: name,
+          path: path,
+          createdAt: DateTime.now(),
+          pageCount: 1,
+        );
+
+        await _repo.saveFile(docItem);
+        results.add(docItem);
+      }
+
+      input.dispose();
+      return results;
+    } catch (e) {
+      debugPrint('❌ Split error: $e');
+      return [];
+    }
+  }
+
+  Future<List<DocumentItem>> splitByRange(String inputRange) async {
+    try {
+      final ranges = parseRanges(inputRange);
+
+      final bytes = await File(document.path).readAsBytes();
+      final input = PdfDocument(inputBytes: bytes);
+
+      final dir = await getApplicationDocumentsDirectory();
+      final results = <DocumentItem>[];
+
+      for (final r in ranges) {
+        final newDoc = PdfDocument();
+
+        for (int i = r.start; i <= r.end; i++) {
+          if (i >= input.pages.count) break;
+
+          final originalPage = input.pages[i];
+          final newPage = newDoc.pages.add();
+
+          final template = originalPage.createTemplate();
+
+          final pageWidth = newPage.getClientSize().width;
+          final pageHeight = newPage.getClientSize().height;
+
+          final templateWidth = template.size.width;
+          final templateHeight = template.size.height;
+
+          // 🔥 SCALE CHUẨN (FIX LANDSCAPE)
+          final scaleX = pageWidth / templateWidth;
+          final scaleY = pageHeight / templateHeight;
+          final scale = math.min(scaleX, scaleY);
+
+          final drawWidth = templateWidth * scale;
+          final drawHeight = templateHeight * scale;
+
+          final offsetX = (pageWidth - drawWidth) / 2;
+          final offsetY = (pageHeight - drawHeight) / 2;
+
+          newPage.graphics.drawPdfTemplate(
+            template,
+            Offset(offsetX, offsetY),
+            Size(drawWidth, drawHeight),
+          );
+        }
+
+        final name =
+            '${document.name.replaceAll('.pdf', '')}_${r.start + 1}-${r.end + 1}.pdf';
+
+        final path = '${dir.path}/$name';
+
+        await File(path).writeAsBytes(await newDoc.save());
+        newDoc.dispose();
+
+        final docItem = DocumentItem(
+          id: const Uuid().v4(),
+          name: name,
+          path: path,
+          createdAt: DateTime.now(),
+          pageCount: r.end - r.start + 1,
+        );
+
+        await _repo.saveFile(docItem);
+        results.add(docItem);
+      }
+
+      input.dispose();
+      return results;
+    } catch (e) {
+      debugPrint('❌ Split range error: $e');
+      return [];
+    }
+  }
+
+  Future<DocumentItem?> combineWithCurrent() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (result == null || result.files.isEmpty) return null;
+
+      final pickedPaths = result.paths.whereType<String>().toList();
+      if (pickedPaths.isEmpty) return null;
+
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName = 'Combined_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final outputPath = '${dir.path}/$fileName';
+
+      // 🔥 Tạo PDF mới rỗng
+      final outputPdf = PdfDocument();
+
+      // 🔥 Gom tất cả paths: current trước, picked sau
+      final allPaths = [document.path, ...pickedPaths];
+
+      for (final path in allPaths) {
+        final bytes = await File(path).readAsBytes();
+        final srcDoc = PdfDocument(inputBytes: bytes);
+
+        for (int i = 0; i < srcDoc.pages.count; i++) {
+          final srcPage = srcDoc.pages[i];
+          final newPage = outputPdf.pages.add();
+
+          // Copy nội dung page bằng PdfTemplate
+          final template = srcPage.createTemplate();
+          newPage.graphics.drawPdfTemplate(template, Offset.zero, srcPage.size);
+        }
+
+        srcDoc.dispose();
+      }
+
+      // 🔥 Save
+      final bytes = await outputPdf.save();
+      final pageCount = outputPdf.pages.count;
+      outputPdf.dispose();
+
+      await File(outputPath).writeAsBytes(bytes);
+
+      final doc = DocumentItem(
+        id: const Uuid().v4(),
+        name: fileName,
+        path: outputPath,
+        createdAt: DateTime.now(),
+        pageCount: pageCount,
+      );
+
+      await _repo.saveFile(doc);
+
+      return doc;
+    } catch (e) {
+      debugPrint('❌ Combine error: $e');
+      return null;
+    }
+  }
+  // Future<DocumentItem?> combineWithCurrent() async {
+  //   try {
+  //     final result = await FilePicker.platform.pickFiles(
+  //       allowMultiple: true,
+  //       type: FileType.custom,
+  //       allowedExtensions: ['pdf'],
+  //     );
+
+  //     if (result == null || result.files.isEmpty) return null;
+
+  //     final pickedPaths = result.paths.whereType<String>().toList();
+  //     if (pickedPaths.isEmpty) return null;
+
+  //     final currentPath = document.path;
+  //     final dir = await getApplicationDocumentsDirectory();
+  //     final fileName = 'Combined_${DateTime.now().millisecondsSinceEpoch}.pdf';
+  //     final outputPath = '${dir.path}/$fileName';
+
+  //     // ✅ current trước → picked phía sau
+  //     final inputPaths = [currentPath, ...pickedPaths];
+
+  //     await PdfCombiner.generatePDFFromDocuments(
+  //       inputs: inputPaths.map((p) => MergeInput.path(p)).toList(),
+  //       outputPath: outputPath,
+  //     );
+
+  //     final doc = DocumentItem(
+  //       id: const Uuid().v4(),
+  //       name: fileName,
+  //       path: outputPath,
+  //       createdAt: DateTime.now(),
+  //       pageCount: 0,
+  //     );
+
+  //     await _repo.saveFile(doc);
+
+  //     return doc;
+  //   } catch (e) {
+  //     debugPrint('❌ Combine error: $e');
+  //     return null;
+  //   }
+  // }
+
+  // Future<DocumentItem?> combine() async {
+  //   try {
+  //     final result = await FilePicker.platform.pickFiles(
+  //       allowMultiple: true,
+  //       type: FileType.custom,
+  //       allowedExtensions: ['pdf'],
+  //     );
+
+  //     if (result == null || result.files.isEmpty) return null;
+
+  //     final files = result.paths.whereType<String>().toList();
+
+  //     if (files.isEmpty) return null;
+
+  //     final pdf = pw.Document();
+
+  //     for (final path in files) {
+  //       final bytes = await File(path).readAsBytes();
+
+  //       final raster = await Printing.raster(bytes, dpi: 72).toList();
+
+  //       for (final page in raster) {
+  //         final pngBytes = await page.toPng();
+
+  //         pdf.addPage(
+  //           pw.Page(build: (_) => pw.Image(pw.MemoryImage(pngBytes))),
+  //         );
+  //       }
+  //     }
+
+  //     final dir = await getApplicationDocumentsDirectory();
+
+  //     final fileName = 'Combined_${DateTime.now().millisecondsSinceEpoch}.pdf';
+  //     final outputPath = '${dir.path}/$fileName';
+
+  //     final file = File(outputPath);
+  //     await file.writeAsBytes(await pdf.save());
+
+  //     final doc = DocumentItem(
+  //       id: const Uuid().v4(),
+  //       name: fileName,
+  //       path: outputPath,
+  //       createdAt: DateTime.now(),
+  //       pageCount: 0, // optional
+  //     );
+
+  //     await _repo.saveFile(doc);
+
+  //     return doc;
+  //   } catch (e) {
+  //     debugPrint('❌ Combine error: $e');
+  //     return null;
+  //   }
+  // }
+
+  Future<List<DocumentItem>> splitPdf() async {
+    try {
+      final bytes = await File(document.path).readAsBytes();
+
+      final PdfDocument input = PdfDocument(inputBytes: bytes);
+
+      final dir = await getApplicationDocumentsDirectory();
+
+      final List<DocumentItem> results = [];
+
+      for (int i = 0; i < input.pages.count; i++) {
+        final newDoc = PdfDocument();
+
+        // 🔥 copy từng page
+        newDoc.pages.add().graphics.drawPdfTemplate(
+          input.pages[i].createTemplate(),
+          const Offset(0, 0),
+        );
+
+        final fileName =
+            '${document.name.replaceAll('.pdf', '')}_p${i + 1}.pdf';
+
+        final path = '${dir.path}/$fileName';
+
+        final file = File(path);
+        await file.writeAsBytes(await newDoc.save());
+
+        newDoc.dispose();
+
+        final docItem = DocumentItem(
+          id: const Uuid().v4(),
+          name: fileName,
+          path: path,
+          createdAt: DateTime.now(),
+          pageCount: 1,
+        );
+
+        await _repo.saveFile(docItem);
+        results.add(docItem);
+      }
+
+      input.dispose();
+
+      return results;
+    } catch (e) {
+      debugPrint('❌ Split error: $e');
+      return [];
+    }
+  }
+
   void bookmark() {}
-  void rename() {}
-  void setPassword() {}
-  void unsetPassword() {}
+  Future<void> rename(String newName) async {
+    try {
+      final dir = File(document.path).parent;
+
+      final safeName = newName.replaceAll('.pdf', '');
+      final newPath = '${dir.path}/$safeName.pdf';
+
+      // ===== RENAME FILE =====
+      final newFile = await File(document.path).rename(newPath);
+
+      final updatedDoc = document.copyWith(
+        name: '$safeName.pdf',
+        path: newFile.path,
+      );
+
+      // ===== UPDATE DB =====
+      await _repo.updateDocument(updatedDoc);
+
+      // ===== UPDATE LOCAL =====
+      _document = updatedDoc;
+
+      // 🔥 QUAN TRỌNG: reload lại preview từ file mới
+      await _loadPages();
+
+      notifyListeners();
+
+      debugPrint('✅ Rename success: $newPath');
+    } catch (e) {
+      debugPrint('❌ Rename failed: $e');
+    }
+  }
+
+  Future<DocumentItem?> setPassword(String password) async {
+    try {
+      final bytes = await File(document.path).readAsBytes();
+
+      final pdf = PdfDocument(inputBytes: bytes);
+
+      // 🔥 SET PASSWORD
+      pdf.security.userPassword = password;
+
+      final dir = await getApplicationDocumentsDirectory();
+      final newPath =
+          '${dir.path}/${document.name.replaceAll('.pdf', '')}_secured.pdf';
+
+      final file = File(newPath);
+      await file.writeAsBytes(await pdf.save());
+
+      pdf.dispose();
+
+      final doc = DocumentItem(
+        id: const Uuid().v4(),
+        name: '${document.name.replaceAll('.pdf', '')}_secured.pdf',
+        path: newPath,
+        createdAt: DateTime.now(),
+        pageCount: document.pageCount,
+      );
+
+      await _repo.saveFile(doc);
+
+      return doc;
+    } catch (e) {
+      debugPrint('❌ Set password error: $e');
+      return null;
+    }
+  }
+
+  Future<DocumentItem?> removePassword(String password) async {
+    try {
+      final bytes = await File(document.path).readAsBytes();
+
+      // 🔥 mở bằng password
+      final pdf = PdfDocument(inputBytes: bytes, password: password);
+
+      // 🔥 remove password
+      pdf.security.userPassword = '';
+
+      final dir = await getApplicationDocumentsDirectory();
+      final newPath =
+          '${dir.path}/${document.name.replaceAll('.pdf', '')}_unlocked.pdf';
+
+      final file = File(newPath);
+      await file.writeAsBytes(await pdf.save());
+
+      pdf.dispose();
+
+      final doc = DocumentItem(
+        id: const Uuid().v4(),
+        name: '${document.name.replaceAll('.pdf', '')}_unlocked.pdf',
+        path: newPath,
+        createdAt: DateTime.now(),
+        pageCount: document.pageCount,
+      );
+
+      await _repo.saveFile(doc);
+
+      return doc;
+    } catch (e) {
+      debugPrint('❌ Remove password error: $e');
+      return null;
+    }
+  }
 }

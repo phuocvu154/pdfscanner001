@@ -35,10 +35,6 @@ class DocumentItem {
   }
 }
 
-
-
-
-
 /// Adapter để Hive biết cách đọc/ghi DocumentItem
 class DocumentItemAdapter extends TypeAdapter<DocumentItem> {
   @override

@@ -14,6 +14,7 @@ import '../features/documents/document_item.dart';
 import '../features/documents/document_repository.dart';
 import '../features/pdf/pdf_view/pdf_view_screen.dart';
 
+
 class ScanMenuOverlay extends StatelessWidget {
   final VoidCallback onClose;
   // 🔴 THÊM FIELD NÀY
